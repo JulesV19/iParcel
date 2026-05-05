@@ -103,7 +103,7 @@ export default function Home() {
   )
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
+    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
       <header className="bg-white shadow-sm px-6 py-3 flex items-center justify-between flex-shrink-0">
         <span className="font-bold text-green-700 text-lg">iParcel</span>
         <div className="flex items-center gap-4 text-sm">
@@ -132,7 +132,7 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Panneau gauche — liste des parcelles */}
         <aside className="w-80 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
@@ -240,6 +240,11 @@ export default function Home() {
           )}
         </main>
       </div>
+      <footer className="flex-shrink-0 border-t border-gray-100 bg-white px-6 py-2 flex gap-4 justify-center">
+        <Link href="/mentions-legales" className="text-xs text-gray-400 hover:underline">Mentions légales</Link>
+        <Link href="/confidentialite" className="text-xs text-gray-400 hover:underline">Confidentialité</Link>
+        <Link href="/cgu" className="text-xs text-gray-400 hover:underline">CGU</Link>
+      </footer>
     </div>
   )
 }
