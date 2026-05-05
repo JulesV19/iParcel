@@ -140,11 +140,11 @@ export default function MapComponent({ userId, onSaved }: { userId: string; onSa
               onChange={(e) => setParcelName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && saveParcel()}
               autoFocus
-              className="border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="border rounded-lg px-4 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500"
             />
             {saveError && <p className="text-sm text-red-500">{saveError}</p>}
             <div className="flex gap-2 justify-end">
-              <button onClick={cancelDraw} className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50">
+              <button onClick={cancelDraw} className="px-4 py-2 text-sm text-gray-700 border rounded-lg hover:bg-gray-50">
                 Annuler
               </button>
               <button

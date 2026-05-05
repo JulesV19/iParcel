@@ -27,8 +27,20 @@ function stretch(value: number, isUint16: boolean): number {
 
 export default function ParcelImageViewer({ item, parcelGeometry }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const wrapperRef = useRef<HTMLDivElement>(null)
   const [status, setStatus] = useState<'loading' | 'done' | 'error'>('loading')
   const [errorMsg, setErrorMsg] = useState('')
+  const [squareSize, setSquareSize] = useState(0)
+
+  useEffect(() => {
+    if (!wrapperRef.current) return
+    const ro = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect
+      setSquareSize(Math.floor(Math.min(width, height)))
+    })
+    ro.observe(wrapperRef.current)
+    return () => ro.disconnect()
+  }, [])
 
   useEffect(() => {
     if (!item.visualUrl) {
@@ -71,21 +83,31 @@ export default function ParcelImageViewer({ item, parcelGeometry }: Props) {
         const pMinY = Math.min(...ys)
         const pMaxY = Math.max(...ys)
 
+        if (imageWidth === 0 || imageHeight === 0) throw new Error('Image COG de dimensions nulles')
+        const bboxW = nativeBbox[2] - nativeBbox[0]
+        const bboxH = nativeBbox[3] - nativeBbox[1]
+        if (bboxW === 0 || bboxH === 0) throw new Error('Bounding box COG dégénéré')
+
         // nativeBbox[3] = maxY = top of image in CRS (north)
-        const scaleX = imageWidth / (nativeBbox[2] - nativeBbox[0])
-        const scaleY = imageHeight / (nativeBbox[3] - nativeBbox[1])
+        const scaleX = imageWidth / bboxW
+        const scaleY = imageHeight / bboxH
 
-        let x0 = Math.floor((pMinX - nativeBbox[0]) * scaleX)
-        let x1 = Math.ceil((pMaxX - nativeBbox[0]) * scaleX)
-        let y0 = Math.floor((nativeBbox[3] - pMaxY) * scaleY)
-        let y1 = Math.ceil((nativeBbox[3] - pMinY) * scaleY)
+        const rawX0 = Math.floor((pMinX - nativeBbox[0]) * scaleX)
+        const rawX1 = Math.ceil((pMaxX - nativeBbox[0]) * scaleX)
+        const rawY0 = Math.floor((nativeBbox[3] - pMaxY) * scaleY)
+        const rawY1 = Math.ceil((nativeBbox[3] - pMinY) * scaleY)
 
-        const padX = Math.max(5, Math.round((x1 - x0) * 0.3))
-        const padY = Math.max(5, Math.round((y1 - y0) * 0.3))
-        x0 = Math.max(0, Math.min(imageWidth - 1, x0 - padX))
-        x1 = Math.max(x0 + 1, Math.min(imageWidth, x1 + padX))
-        y0 = Math.max(0, Math.min(imageHeight - 1, y0 - padY))
-        y1 = Math.max(y0 + 1, Math.min(imageHeight, y1 + padY))
+        // Square window centered on the parcel bbox, 10% margin on each side
+        const cx = (rawX0 + rawX1) / 2
+        const cy = (rawY0 + rawY1) / 2
+        const halfSide = Math.ceil(Math.max(rawX1 - rawX0, rawY1 - rawY0, 10) / 2 * 1.1)
+
+        const x0 = Math.max(0, Math.round(cx - halfSide))
+        const x1 = Math.min(imageWidth, Math.round(cx + halfSide))
+        const y0 = Math.max(0, Math.round(cy - halfSide))
+        const y1 = Math.min(imageHeight, Math.round(cy + halfSide))
+
+        if (x1 <= x0 || y1 <= y0) throw new Error('Parcelle hors des limites de la tuile')
 
         const w = x1 - x0
         const h = y1 - y0
@@ -109,7 +131,8 @@ export default function ParcelImageViewer({ item, parcelGeometry }: Props) {
         if (!r || !g || !b) throw new Error('COG sans 3 bandes RGB')
         const isUint16 = r instanceof Uint16Array
 
-        const ctx = canvas.getContext('2d')!
+        const ctx = canvas.getContext('2d')
+        if (!ctx) throw new Error('Canvas 2D non disponible')
         const imgData = ctx.createImageData(w, h)
 
         for (let i = 0; i < w * h; i++) {
@@ -133,8 +156,6 @@ export default function ParcelImageViewer({ item, parcelGeometry }: Props) {
         ctx.strokeStyle = 'rgba(255, 220, 0, 0.95)'
         ctx.lineWidth = 2
         ctx.stroke()
-        ctx.fillStyle = 'rgba(255, 220, 0, 0.08)'
-        ctx.fill()
 
         setStatus('done')
       } catch (e) {
@@ -150,25 +171,23 @@ export default function ParcelImageViewer({ item, parcelGeometry }: Props) {
     return () => { cancelled = true }
   }, [item, parcelGeometry])
 
-  if (status === 'error') {
-    return (
-      <div className="flex items-center justify-center min-h-48 text-sm text-red-500 px-4 text-center">
-        {errorMsg}
-      </div>
-    )
-  }
-
   return (
-    <div className="flex items-center justify-center bg-gray-100">
-      {status === 'loading' && (
-        <div className="flex items-center justify-center h-48">
+    <div ref={wrapperRef} className="w-full h-full flex items-center justify-center">
+      <div
+        className="bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0"
+        style={{ width: squareSize, height: squareSize }}
+      >
+        {status === 'loading' && (
           <span className="text-sm text-gray-400">Chargement de l&apos;image…</span>
-        </div>
-      )}
-      <canvas
-        ref={canvasRef}
-        style={{ display: status === 'done' ? 'block' : 'none', width: '33vw', height: 'auto' }}
-      />
+        )}
+        {status === 'error' && (
+          <span className="text-sm text-red-500 px-4 text-center">{errorMsg}</span>
+        )}
+        <canvas
+          ref={canvasRef}
+          style={{ display: status === 'done' ? 'block' : 'none', width: '100%', height: '100%' }}
+        />
+      </div>
     </div>
   )
 }

@@ -13,11 +13,29 @@ export interface SentinelItem {
   thumbnail: string
   visualUrl: string
   bbox: [number, number, number, number]
+  cloudCover: number | null
+  cloudShadow: number | null
+  vegetation: number | null
+  water: number | null
+  snow: number | null
+  nodata: number | null
+  sunElevation: number | null
+  platform: string | null
 }
 
 type StacFeature = {
   bbox: [number, number, number, number]
-  properties: { datetime: string }
+  properties: {
+    datetime: string
+    platform?: string
+    'eo:cloud_cover'?: number
+    'view:sun_elevation'?: number
+    's2:cloud_shadow_percentage'?: number
+    's2:vegetation_percentage'?: number
+    's2:water_percentage'?: number
+    's2:snow_ice_percentage'?: number
+    's2:nodata_pixel_percentage'?: number
+  }
   assets: {
     thumbnail?: { href: string }
     overview?: { href: string }
@@ -34,6 +52,16 @@ function isValidFeature(f: unknown): f is StacFeature {
     feat.bbox.every(n => typeof n === 'number' && isFinite(n)) &&
     typeof feat.properties?.datetime === 'string'
   )
+}
+
+function toPercent(raw: unknown): number | null {
+  const n = Number(raw)
+  return isFinite(n) && n >= 0 && n <= 100 ? n : null
+}
+
+function toFinite(raw: unknown): number | null {
+  const n = Number(raw)
+  return isFinite(n) ? n : null
 }
 
 export async function fetchSentinelDates(geometry: GeoJSON.Polygon): Promise<SentinelItem[]> {
@@ -55,6 +83,14 @@ export async function fetchSentinelDates(geometry: GeoJSON.Polygon): Promise<Sen
       thumbnail: f.assets.thumbnail?.href ?? f.assets.overview?.href ?? '',
       visualUrl: f.assets.visual?.href ?? '',
       bbox: f.bbox,
+      cloudCover: toPercent(f.properties['eo:cloud_cover']),
+      cloudShadow: toPercent(f.properties['s2:cloud_shadow_percentage']),
+      vegetation: toPercent(f.properties['s2:vegetation_percentage']),
+      water: toPercent(f.properties['s2:water_percentage']),
+      snow: toPercent(f.properties['s2:snow_ice_percentage']),
+      nodata: toPercent(f.properties['s2:nodata_pixel_percentage']),
+      sunElevation: toFinite(f.properties['view:sun_elevation']),
+      platform: typeof f.properties.platform === 'string' ? f.properties.platform : null,
     }))
     .filter((item: SentinelItem) => item.thumbnail)
     .sort((a: SentinelItem, b: SentinelItem) => b.date.localeCompare(a.date))
