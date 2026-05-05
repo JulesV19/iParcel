@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import proj4 from 'proj4'
 import type { SentinelItem } from '@/lib/stac'
 
 interface Props {
@@ -8,11 +9,15 @@ interface Props {
   parcelGeometry: GeoJSON.Polygon
 }
 
-function getParcelBbox(geometry: GeoJSON.Polygon): [number, number, number, number] {
-  const coords = geometry.coordinates[0]
-  const lons = coords.map(c => c[0])
-  const lats = coords.map(c => c[1])
-  return [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)]
+// Build a proj4 string for WGS84 UTM zones (covers all Sentinel-2 projections)
+function utmProj4(epsgCode: number): string | null {
+  if (epsgCode >= 32601 && epsgCode <= 32660) {
+    return `+proj=utm +zone=${epsgCode - 32600} +datum=WGS84 +units=m +no_defs`
+  }
+  if (epsgCode >= 32701 && epsgCode <= 32760) {
+    return `+proj=utm +zone=${epsgCode - 32700} +south +datum=WGS84 +units=m +no_defs`
+  }
+  return null
 }
 
 function stretch(value: number, isUint16: boolean): number {
@@ -45,16 +50,35 @@ export default function ParcelImageViewer({ item, parcelGeometry }: Props) {
         const imageWidth = image.getWidth()
         const imageHeight = image.getHeight()
 
-        const [tileMinLon, , tileMaxLon, tileMaxLat] = item.bbox
-        const [pMinLon, pMinLat, pMaxLon, pMaxLat] = getParcelBbox(parcelGeometry)
+        // Use the image's own bounding box (native CRS — UTM for Sentinel-2)
+        const nativeBbox = image.getBoundingBox() // [minX, minY, maxX, maxY]
+        const geoKeys = image.getGeoKeys()
+        const epsgCode = geoKeys?.ProjectedCSTypeGeoKey as number | undefined
 
-        const scaleX = imageWidth / (tileMaxLon - tileMinLon)
-        const scaleY = imageHeight / (item.bbox[3] - item.bbox[1])
+        const proj4Str = epsgCode ? utmProj4(epsgCode) : null
 
-        let x0 = Math.floor((pMinLon - tileMinLon) * scaleX)
-        let x1 = Math.ceil((pMaxLon - tileMinLon) * scaleX)
-        let y0 = Math.floor((tileMaxLat - pMaxLat) * scaleY)
-        let y1 = Math.ceil((tileMaxLat - pMinLat) * scaleY)
+        // Convert parcel WGS84 coords → image CRS
+        const rawCoords = parcelGeometry.coordinates[0]
+        const imageCRSCoords: [number, number][] = rawCoords.map(coord => {
+          if (proj4Str) return proj4('WGS84', proj4Str, [coord[0], coord[1]]) as [number, number]
+          return [coord[0], coord[1]]
+        })
+
+        const xs = imageCRSCoords.map(c => c[0])
+        const ys = imageCRSCoords.map(c => c[1])
+        const pMinX = Math.min(...xs)
+        const pMaxX = Math.max(...xs)
+        const pMinY = Math.min(...ys)
+        const pMaxY = Math.max(...ys)
+
+        // nativeBbox[3] = maxY = top of image in CRS (north)
+        const scaleX = imageWidth / (nativeBbox[2] - nativeBbox[0])
+        const scaleY = imageHeight / (nativeBbox[3] - nativeBbox[1])
+
+        let x0 = Math.floor((pMinX - nativeBbox[0]) * scaleX)
+        let x1 = Math.ceil((pMaxX - nativeBbox[0]) * scaleX)
+        let y0 = Math.floor((nativeBbox[3] - pMaxY) * scaleY)
+        let y1 = Math.ceil((nativeBbox[3] - pMinY) * scaleY)
 
         const padX = Math.max(5, Math.round((x1 - x0) * 0.3))
         const padY = Math.max(5, Math.round((y1 - y0) * 0.3))
@@ -97,12 +121,11 @@ export default function ParcelImageViewer({ item, parcelGeometry }: Props) {
 
         ctx.putImageData(imgData, 0, 0)
 
-        // Dessin du contour de la parcelle
-        const coords = parcelGeometry.coordinates[0]
+        // Draw parcel outline using native CRS coordinates
         ctx.beginPath()
-        coords.forEach((coord, i) => {
-          const cx = (coord[0] - tileMinLon) * scaleX - x0
-          const cy = (tileMaxLat - coord[1]) * scaleY - y0
+        imageCRSCoords.forEach((coord, i) => {
+          const cx = (coord[0] - nativeBbox[0]) * scaleX - x0
+          const cy = (nativeBbox[3] - coord[1]) * scaleY - y0
           if (i === 0) ctx.moveTo(cx, cy)
           else ctx.lineTo(cx, cy)
         })
