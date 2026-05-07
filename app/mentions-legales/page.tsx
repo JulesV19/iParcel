@@ -39,11 +39,17 @@ export default function MentionsLegales() {
 
         <section className="mb-6">
           <h2 className="text-sm font-semibold text-gray-700 mb-2">Propriété intellectuelle</h2>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600 mb-2">
             iParcel est un projet personnel. Les images satellitaires affichées sont issues du
             programme Copernicus de l'Agence Spatiale Européenne (ESA) — données Sentinel-2,
             distribuées via l'API publique Element 84 Earth Search. Leur usage est libre
             conformément à la Licence Copernicus.
+          </p>
+          <p className="text-sm text-gray-600">
+            Les données météorologiques sont fournies par{' '}
+            <a href="https://open-meteo.com" className="text-green-700 hover:underline" target="_blank" rel="noopener noreferrer">Open-Meteo</a>,
+            sous licence{' '}
+            <a href="https://creativecommons.org/licenses/by/4.0/" className="text-green-700 hover:underline" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>.
           </p>
         </section>
 

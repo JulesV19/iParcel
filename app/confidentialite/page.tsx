@@ -8,7 +8,7 @@ export default function Confidentialite() {
       <div className="max-w-2xl mx-auto bg-white rounded-xl border border-gray-100 p-8">
         <Link href="/" className="text-xs text-green-700 hover:underline mb-6 inline-block">← Retour</Link>
         <h1 className="text-xl font-bold text-gray-900 mb-2">Politique de confidentialité</h1>
-        <p className="text-xs text-gray-400 mb-8">Dernière mise à jour : 5 mai 2026</p>
+        <p className="text-xs text-gray-400 mb-8">Dernière mise à jour : 7 mai 2026</p>
 
         <section className="mb-6">
           <h2 className="text-sm font-semibold text-gray-700 mb-2">Responsable du traitement</h2>
@@ -25,7 +25,10 @@ export default function Confidentialite() {
             <li><strong>Noms de parcelles</strong> — librement saisis par l'utilisateur.</li>
           </ul>
           <p className="text-sm text-gray-600 mt-2">
-            Aucune donnée de paiement, de localisation en temps réel, ni de données sensibles n'est collectée.
+            Les coordonnées géographiques du centroïde de chaque parcelle (latitude et longitude)
+            sont transmises au service Open-Meteo pour obtenir les données météorologiques locales.
+            Aucun identifiant utilisateur n'est joint à cette requête.
+            Aucune donnée de paiement ni donnée sensible n'est collectée.
           </p>
         </section>
 
@@ -35,6 +38,7 @@ export default function Confidentialite() {
             <li>Authentification et accès sécurisé au service</li>
             <li>Sauvegarde et affichage de vos parcelles</li>
             <li>Consultation des images satellitaires Sentinel-2 correspondantes</li>
+            <li>Affichage des données météorologiques locales à la parcelle</li>
           </ul>
         </section>
 
@@ -61,6 +65,12 @@ export default function Confidentialite() {
             <div>
               <strong>Element 84 / AWS</strong> — fourniture des images satellitaires publiques
               Sentinel-2. Données non personnelles.
+            </div>
+            <div>
+              <strong>Open-Meteo</strong> (Allemagne) — fourniture des données météorologiques.
+              Seul le centroïde géographique de la parcelle (latitude/longitude) est transmis,
+              sans identifiant utilisateur.{' '}
+              <a href="https://open-meteo.com/en/terms" className="text-green-700 hover:underline" target="_blank" rel="noopener noreferrer">Conditions Open-Meteo</a>
             </div>
           </div>
         </section>
