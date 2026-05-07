@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase'
 import { fetchSentinelDates, formatDate } from '@/lib/stac'
 import type { SentinelItem } from '@/lib/stac'
 import type { Parcel } from '@/lib/types'
-import ParcelImageViewer from '@/components/ParcelImageViewer'
+import ParcelImageViewer, { type IndexType } from '@/components/ParcelImageViewer'
 
 interface Selection {
   item: SentinelItem
@@ -37,6 +37,7 @@ export default function Home() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [accountError, setAccountError] = useState('')
   const [selection, setSelection] = useState<Selection | null>(null)
+  const [selectedIndex, setSelectedIndex] = useState<IndexType>('RGB')
   const fetchedIds = useRef(new Set<string>())
 
   useEffect(() => {
@@ -210,14 +211,31 @@ export default function Home() {
             </div>
           ) : (
             <div className="flex flex-col h-full">
-              <div className="px-6 pt-6 pb-3 flex-shrink-0">
-                <h2 className="text-base font-semibold text-gray-800">{selection.parcel.name}</h2>
-                <p className="text-sm text-gray-400">{formatDate(selection.item.date)}</p>
+              <div className="px-6 pt-6 pb-3 flex-shrink-0 flex items-start justify-between">
+                <div>
+                  <h2 className="text-base font-semibold text-gray-800">{selection.parcel.name}</h2>
+                  <p className="text-sm text-gray-400">{formatDate(selection.item.date)}</p>
+                </div>
+                <div className="flex gap-1">
+                  {(['RGB', 'NDVI', 'NDWI', 'NDMI'] as const).map(idx => (
+                    <button
+                      key={idx}
+                      onClick={() => setSelectedIndex(idx)}
+                      className={`px-3 py-1 text-xs font-medium rounded border transition-colors ${
+                        selectedIndex === idx
+                          ? 'bg-green-600 border-green-600 text-white'
+                          : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      {idx}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="flex-1 min-h-0 flex gap-6 px-6 pb-6">
                 <div className="flex-1 min-h-0 min-w-0">
-                  <ParcelImageViewer item={selection.item} parcelGeometry={selection.parcel.geometry} />
+                  <ParcelImageViewer item={selection.item} parcelGeometry={selection.parcel.geometry} index={selectedIndex} />
                 </div>
 
                 <div className="w-56 flex-shrink-0 bg-white rounded-xl border border-gray-100 p-4 self-start">

@@ -12,6 +12,10 @@ export interface SentinelItem {
   date: string
   thumbnail: string
   visualUrl: string
+  redUrl: string    // B04 — 10m
+  nirUrl: string    // B08 — 10m
+  greenUrl: string  // B03 — 10m
+  swirUrl: string   // B11 — 20m
   bbox: [number, number, number, number]
   cloudCover: number | null
   cloudShadow: number | null
@@ -40,6 +44,10 @@ type StacFeature = {
     thumbnail?: { href: string }
     overview?: { href: string }
     visual?: { href: string }
+    red?: { href: string }
+    nir?: { href: string }
+    green?: { href: string }
+    swir16?: { href: string }
   }
 }
 
@@ -82,6 +90,10 @@ export async function fetchSentinelDates(geometry: GeoJSON.Polygon): Promise<Sen
       date: f.properties.datetime,
       thumbnail: f.assets.thumbnail?.href ?? f.assets.overview?.href ?? '',
       visualUrl: f.assets.visual?.href ?? '',
+      redUrl: f.assets.red?.href ?? '',
+      nirUrl: f.assets.nir?.href ?? '',
+      greenUrl: f.assets.green?.href ?? '',
+      swirUrl: f.assets.swir16?.href ?? '',
       bbox: f.bbox,
       cloudCover: toPercent(f.properties['eo:cloud_cover']),
       cloudShadow: toPercent(f.properties['s2:cloud_shadow_percentage']),

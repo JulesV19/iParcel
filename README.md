@@ -9,6 +9,9 @@ Application web pour agriculteurs : dessiner des parcelles sur une carte satelli
 - Consultation des 5 dernières images Sentinel-2 disponibles par parcelle, avec couverture nuageuse affichée sur chaque badge de date
 - Interface en deux panneaux : liste des parcelles à gauche, visualisation à droite
 - Affichage de l'image satellite recadrée sur la parcelle (fenêtre carrée, 10% de marge) au clic sur une date
+- Sélecteur d'indice : **RGB**, **NDVI** (végétation), **NDWI** (eau libre), **NDMI** (humidité/stress hydrique)
+- Légende colorée avec description agronomique et échelle de valeurs pour chaque indice
+- Barre de progression avec étapes nommées pendant le chargement des bandes
 - Métadonnées de la prise de vue : satellite, élévation soleil, couverture nuageuse détaillée, occupation du sol, pixels sans donnée
 
 ## Stack
