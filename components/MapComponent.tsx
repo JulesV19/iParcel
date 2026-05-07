@@ -131,7 +131,7 @@ export default function MapComponent({ userId, onSaved }: { userId: string; onSa
 
       {showModal && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-[1001]">
-          <div className="bg-white rounded-xl shadow-xl p-6 w-80 flex flex-col gap-4">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-[90vw] max-w-sm flex flex-col gap-4">
             <h2 className="font-semibold text-gray-800">Nommer la parcelle</h2>
             <input
               type="text"
@@ -140,17 +140,17 @@ export default function MapComponent({ userId, onSaved }: { userId: string; onSa
               onChange={(e) => setParcelName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && saveParcel()}
               autoFocus
-              className="border rounded-lg px-4 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="border rounded-lg px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500"
             />
             {saveError && <p className="text-sm text-red-500">{saveError}</p>}
             <div className="flex gap-2 justify-end">
-              <button onClick={cancelDraw} className="px-4 py-2 text-sm text-gray-700 border rounded-lg hover:bg-gray-50">
+              <button onClick={cancelDraw} className="px-4 py-3 text-sm text-gray-700 border rounded-lg hover:bg-gray-50">
                 Annuler
               </button>
               <button
                 onClick={saveParcel}
                 disabled={!parcelName.trim() || saving}
-                className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                className="px-4 py-3 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
               >
                 {saving ? '...' : 'Enregistrer'}
               </button>

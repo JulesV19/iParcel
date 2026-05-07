@@ -24,35 +24,27 @@ interface Selection {
 
 type WeatherState = WeatherData | 'loading' | 'error' | null
 
-function wmoIcon(code: number): LucideIcon {
-  if (code === 0) return Sun
-  if (code <= 2) return CloudSun
-  if (code === 3) return Cloud
-  if (code <= 48) return CloudFog
-  if (code <= 55) return CloudDrizzle
-  if (code <= 67) return CloudRain
-  if (code <= 77) return CloudSnow
-  if (code <= 82) return CloudRain
-  if (code <= 86) return CloudSnow
-  return CloudLightning
-}
+const WMO_MAP: Array<[number, LucideIcon, string]> = [
+  [0,        Sun,            'text-amber-400'],
+  [2,        CloudSun,       'text-amber-300'],
+  [3,        Cloud,          'text-gray-400' ],
+  [48,       CloudFog,       'text-gray-400' ],
+  [55,       CloudDrizzle,   'text-blue-300' ],
+  [67,       CloudRain,      'text-blue-500' ],
+  [77,       CloudSnow,      'text-blue-300' ],
+  [82,       CloudRain,      'text-blue-500' ],
+  [86,       CloudSnow,      'text-blue-300' ],
+  [Infinity, CloudLightning, 'text-amber-500'],
+]
 
-function wmoColor(code: number): string {
-  if (code === 0) return 'text-amber-400'
-  if (code <= 2) return 'text-amber-300'
-  if (code === 3) return 'text-gray-400'
-  if (code <= 48) return 'text-gray-400'
-  if (code <= 55) return 'text-blue-300'
-  if (code <= 67) return 'text-blue-500'
-  if (code <= 77) return 'text-blue-300'
-  if (code <= 82) return 'text-blue-500'
-  if (code <= 86) return 'text-blue-300'
-  return 'text-amber-500'
+function wmoStyle(code: number): { Icon: LucideIcon; color: string } {
+  const entry = WMO_MAP.find(([max]) => code <= max) ?? WMO_MAP[WMO_MAP.length - 1]
+  return { Icon: entry[1], color: entry[2] }
 }
 
 function WeatherIcon({ code, size }: { code: number; size: number }) {
-  const Icon = wmoIcon(code)
-  return <Icon size={size} className={wmoColor(code)} />
+  const { Icon, color } = wmoStyle(code)
+  return <Icon size={size} className={color} />
 }
 
 function dayLabel(dateStr: string, todayStr: string): string {
@@ -65,12 +57,20 @@ function dayLabel(dateStr: string, todayStr: string): string {
   return new Date(dateStr + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short' })
 }
 
+function WeatherCard({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 p-4">
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Météo locale</p>
+      {children}
+    </div>
+  )
+}
+
 function WeatherPanel({ data }: { data: WeatherData }) {
   const today = data.days[data.todayIndex]
   if (!today) return null
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-4">
-      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Météo locale</p>
+    <WeatherCard>
       <div className="flex items-start gap-3 mb-4">
         <WeatherIcon code={data.current.weatherCode} size={32} />
         <div>
@@ -104,7 +104,7 @@ function WeatherPanel({ data }: { data: WeatherData }) {
         })}
       </div>
       <p className="text-[10px] text-gray-300 text-right mt-2">Open-Meteo</p>
-    </div>
+    </WeatherCard>
   )
 }
 
@@ -164,27 +164,27 @@ export default function Home() {
   }, [router])
 
   useEffect(() => {
-    if (!selection) {
+    const parcelId = selection?.parcel.id ?? null
+    if (parcelId === null) {
       setCurrentWeather(null)
       lastWeatherParcelId.current = null
       return
     }
-    const { id, geometry } = selection.parcel
-    if (id === lastWeatherParcelId.current) return
-    lastWeatherParcelId.current = id
-    const cached = weatherCache.current[id]
+    if (parcelId === lastWeatherParcelId.current) return
+    lastWeatherParcelId.current = parcelId
+    const cached = weatherCache.current[parcelId]
     if (cached) { setCurrentWeather(cached); return }
     setCurrentWeather('loading')
-    const [lat, lon] = parcelCentroid(geometry)
+    const [lat, lon] = parcelCentroid(selection!.parcel.geometry)
     fetchWeather(lat, lon)
       .then(data => {
-        weatherCache.current[id] = data
-        if (lastWeatherParcelId.current === id) setCurrentWeather(data)
+        weatherCache.current[parcelId] = data
+        if (lastWeatherParcelId.current === parcelId) setCurrentWeather(data)
       })
       .catch(() => {
-        if (lastWeatherParcelId.current === id) setCurrentWeather('error')
+        if (lastWeatherParcelId.current === parcelId) setCurrentWeather('error')
       })
-  }, [selection])
+  }, [selection?.parcel.id])
 
   useEffect(() => {
     parcels.forEach(parcel => {
@@ -225,15 +225,15 @@ export default function Home() {
 
   return (
     <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
-      <header className="bg-white shadow-sm px-6 py-3 flex items-center justify-between flex-shrink-0">
+      <header className="bg-white shadow-sm px-4 md:px-6 py-3 flex items-center justify-between flex-shrink-0">
         <span className="font-bold text-green-700 text-lg">iParcel</span>
-        <div className="flex items-center gap-4 text-sm">
+        <div className="flex items-center gap-3 md:gap-4 text-sm">
           <span className="text-gray-400 hidden sm:inline">{email}</span>
           <button onClick={handleLogout} className="text-red-500 hover:underline">
             Se déconnecter
           </button>
           {!confirmDelete ? (
-            <button onClick={() => setConfirmDelete(true)} className="text-xs text-gray-400 hover:underline">
+            <button onClick={() => setConfirmDelete(true)} className="text-xs text-gray-400 hover:underline hidden sm:inline">
               Supprimer mon compte
             </button>
           ) : (
@@ -254,11 +254,10 @@ export default function Home() {
       </header>
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        {/* Panneau gauche — liste des parcelles */}
-        <aside className="w-80 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col overflow-hidden">
+        <aside className={`bg-white border-r border-gray-200 flex flex-col overflow-hidden w-full md:w-80 md:flex-shrink-0 ${selection ? 'hidden md:flex' : 'flex'}`}>
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
             <h1 className="text-sm font-semibold text-gray-800">Mes parcelles</h1>
-            <Link href="/map" className="px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700">
+            <Link href="/map" className="px-3 py-2 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700">
               + Ajouter
             </Link>
           </div>
@@ -278,25 +277,25 @@ export default function Home() {
                       <span className="text-sm font-medium text-gray-800 truncate">{parcel.name}</span>
                       <button
                         onClick={() => deleteParcel(parcel.id)}
-                        className="text-xs text-red-400 hover:text-red-600 flex-shrink-0 ml-2"
+                        className="text-xs text-red-400 hover:text-red-600 flex-shrink-0 ml-2 py-1 px-1"
                       >
                         Supprimer
                       </button>
                     </div>
-                    <p className="text-gray-400 text-xs mb-1.5">Images disponibles</p>
+                    <p className="text-gray-400 text-xs mb-2">Images disponibles</p>
                     {dates[parcel.id] === undefined ? (
                       <span className="text-gray-400 text-xs">Chargement…</span>
                     ) : dates[parcel.id].length === 0 ? (
                       <span className="text-gray-400 text-xs">Aucune image disponible</span>
                     ) : (
-                      <div className="flex flex-wrap gap-1.5">
+                      <div className="flex flex-wrap gap-2">
                         {dates[parcel.id].map(item => {
                           const active = selection?.item.date === item.date && selection?.parcel.id === parcel.id
                           return (
                             <button
                               key={item.date}
                               onClick={() => setSelection({ item, parcel })}
-                              className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border transition-colors ${
+                              className={`inline-flex items-center gap-1 px-3 py-2 rounded text-xs font-medium border transition-colors ${
                                 active
                                   ? 'bg-green-600 border-green-600 text-white'
                                   : 'bg-white border-green-200 text-green-800 hover:bg-green-50'
@@ -323,15 +322,21 @@ export default function Home() {
           </div>
         </aside>
 
-        {/* Panneau droit — visualisation */}
-        <main className="flex-1 overflow-hidden flex flex-col">
+        <main className={`flex-1 flex flex-col ${!selection ? 'hidden md:flex md:overflow-hidden' : 'overflow-y-auto md:overflow-hidden'}`}>
           {!selection ? (
             <div className="h-full flex items-center justify-center text-gray-300 text-sm">
               Cliquez sur une date pour afficher l&apos;image
             </div>
           ) : (
-            <div className="flex flex-col h-full">
-              <div className="px-6 pt-6 pb-3 flex-shrink-0 flex items-start justify-between">
+            <>
+              <button
+                onClick={() => setSelection(null)}
+                className="md:hidden flex items-center gap-1 px-4 py-3 text-sm text-gray-600 bg-white border-b border-gray-100 flex-shrink-0"
+              >
+                ← Mes parcelles
+              </button>
+
+              <div className="px-4 md:px-6 pt-4 md:pt-6 pb-3 flex-shrink-0 flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-0">
                 <div>
                   <h2 className="text-base font-semibold text-gray-800">{selection.parcel.name}</h2>
                   <p className="text-sm text-gray-400">{formatDate(selection.item.date)}</p>
@@ -341,7 +346,7 @@ export default function Home() {
                     <button
                       key={idx}
                       onClick={() => setSelectedIndex(idx)}
-                      className={`px-3 py-1 text-xs font-medium rounded border transition-colors ${
+                      className={`flex-1 md:flex-initial px-3 py-2 text-xs font-medium rounded border transition-colors ${
                         selectedIndex === idx
                           ? 'bg-green-600 border-green-600 text-white'
                           : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
@@ -353,12 +358,12 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="flex-1 min-h-0 flex gap-6 px-6 pb-6">
-                <div className="flex-1 min-h-0 min-w-0">
+              <div className="flex flex-col md:flex-row gap-4 md:gap-6 px-4 md:px-6 pb-6 md:flex-1 md:min-h-0 md:overflow-hidden">
+                <div className="w-full aspect-square md:aspect-auto md:flex-1 md:min-h-0 md:min-w-0">
                   <ParcelImageViewer item={selection.item} parcelGeometry={selection.parcel.geometry} index={selectedIndex} />
                 </div>
 
-                <div className="w-56 flex-shrink-0 flex flex-col gap-3 self-start">
+                <div className="md:w-56 md:flex-shrink-0 flex flex-col gap-3 md:self-start">
                   <div className="bg-white rounded-xl border border-gray-100 p-4">
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Métadonnées</p>
                     {selection.item.platform && (
@@ -375,26 +380,25 @@ export default function Home() {
                     <MetaRow label="Pixels sans donnée" value={pct(selection.item.nodata)} />
                   </div>
                   {currentWeather === 'loading' && (
-                    <div className="bg-white rounded-xl border border-gray-100 p-4">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Météo locale</p>
+                    <WeatherCard>
                       <p className="text-xs text-gray-400">Chargement…</p>
-                    </div>
+                    </WeatherCard>
                   )}
                   {currentWeather === 'error' && (
-                    <div className="bg-white rounded-xl border border-gray-100 p-4">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Météo locale</p>
+                    <WeatherCard>
                       <p className="text-xs text-red-400">Météo indisponible</p>
-                    </div>
+                    </WeatherCard>
                   )}
                   {currentWeather !== null && currentWeather !== 'loading' && currentWeather !== 'error' && (
                     <WeatherPanel data={currentWeather} />
                   )}
                 </div>
               </div>
-            </div>
+            </>
           )}
         </main>
       </div>
+
       <footer className="flex-shrink-0 border-t border-gray-100 bg-white px-6 py-2 flex gap-4 justify-center">
         <Link href="/mentions-legales" className="text-xs text-gray-400 hover:underline">Mentions légales</Link>
         <Link href="/confidentialite" className="text-xs text-gray-400 hover:underline">Confidentialité</Link>
