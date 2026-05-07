@@ -359,7 +359,7 @@ export default function Home() {
               </div>
 
               <div className="flex flex-col md:flex-row gap-4 md:gap-6 px-4 md:px-6 pb-6 md:flex-1 md:min-h-0 md:overflow-hidden">
-                <div className="w-full aspect-square md:aspect-auto md:flex-1 md:min-h-0 md:min-w-0">
+                <div className="w-full md:flex-1 md:min-h-0 md:min-w-0">
                   <ParcelImageViewer item={selection.item} parcelGeometry={selection.parcel.geometry} index={selectedIndex} />
                 </div>
 

@@ -191,8 +191,6 @@ function Legend({ index, width }: { index: IndexType; width: number }) {
   )
 }
 
-const LEGEND_HEIGHT = 110
-
 export default function ParcelImageViewer({ item, parcelGeometry, index }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
@@ -204,8 +202,8 @@ export default function ParcelImageViewer({ item, parcelGeometry, index }: Props
   useEffect(() => {
     if (!wrapperRef.current) return
     const ro = new ResizeObserver(([entry]) => {
-      const { width, height } = entry.contentRect
-      setSquareSize(Math.max(0, Math.floor(Math.min(width, height - LEGEND_HEIGHT))))
+      const w = Math.max(0, Math.floor(entry.contentRect.width))
+      setSquareSize(prev => prev === w ? prev : w)
     })
     ro.observe(wrapperRef.current)
     return () => ro.disconnect()
@@ -314,7 +312,7 @@ export default function ParcelImageViewer({ item, parcelGeometry, index }: Props
           if (!win) throw new Error('Parcelle hors des limites de la tuile')
 
           report(30, 'Téléchargement bande NIR…')
-          const nirRasters = await nirImage.readRasters({ window: [win.x0, win.y0, win.x1, win.y1], samples: [0] })
+          const nirRasters = await nirImage.readRasters({ window: [win.x0, win.y0, win.x1, win.y1], width: win.w, height: win.h, samples: [0] })
           const nirBand = nirRasters[0] as Uint16Array | undefined
           if (!nirBand) throw new Error('Bande NIR manquante')
 
@@ -353,7 +351,6 @@ export default function ParcelImageViewer({ item, parcelGeometry, index }: Props
           for (let i = 0; i < win.w * win.h; i++) {
             const nir = nirBand[i]
             const sec = secBand[i]
-            // NDVI: (NIR-R)/(NIR+R) | NDWI: (G-NIR)/(G+NIR) | NDMI: (NIR-SWIR)/(NIR+SWIR)
             const val = index === 'NDWI'
               ? (sec + nir === 0 ? 0 : (sec - nir) / (sec + nir))
               : (nir + sec === 0 ? 0 : (nir - sec) / (nir + sec))
@@ -384,7 +381,7 @@ export default function ParcelImageViewer({ item, parcelGeometry, index }: Props
   }, [item, parcelGeometry, index])
 
   return (
-    <div ref={wrapperRef} className="w-full h-full flex flex-col items-center justify-center gap-3">
+    <div ref={wrapperRef} className="w-full flex flex-col items-center gap-3">
       <div
         className="bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0"
         style={{ width: squareSize, height: squareSize }}
