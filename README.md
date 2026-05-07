@@ -13,6 +13,7 @@ Application web pour agriculteurs : dessiner des parcelles sur une carte satelli
 - Légende colorée avec description agronomique et échelle de valeurs pour chaque indice
 - Barre de progression avec étapes nommées pendant le chargement des bandes
 - Métadonnées de la prise de vue : satellite, élévation soleil, couverture nuageuse détaillée, occupation du sol, pixels sans donnée
+- Météo locale au centroïde de la parcelle : conditions actuelles (icône, description, min/max, ressenti, humidité, précipitations) + frise sur 5 jours (J-2 à J+2) centrée sur aujourd'hui
 
 ## Stack
 
@@ -20,6 +21,8 @@ Application web pour agriculteurs : dessiner des parcelles sur une carte satelli
 - Supabase (auth + base de données)
 - Element 84 Earth Search (STAC API Sentinel-2 L2A)
 - geotiff.js (lecture Cloud Optimized GeoTIFF via range requests)
+- Open-Meteo (météo gratuite, sans clé API)
+- lucide-react (icônes SVG)
 - Déployé sur Vercel
 
 ## Lancer en local

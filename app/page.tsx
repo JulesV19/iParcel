@@ -8,10 +8,104 @@ import { fetchSentinelDates, formatDate } from '@/lib/stac'
 import type { SentinelItem } from '@/lib/stac'
 import type { Parcel } from '@/lib/types'
 import ParcelImageViewer, { type IndexType } from '@/components/ParcelImageViewer'
+import {
+  Sun, Cloud, CloudSun, CloudRain, CloudSnow, CloudLightning, CloudDrizzle, CloudFog,
+  type LucideIcon,
+} from 'lucide-react'
+import {
+  fetchWeather, parcelCentroid, weatherCodeLabel,
+  type WeatherData,
+} from '@/lib/weather'
 
 interface Selection {
   item: SentinelItem
   parcel: Parcel
+}
+
+type WeatherState = WeatherData | 'loading' | 'error' | null
+
+function wmoIcon(code: number): LucideIcon {
+  if (code === 0) return Sun
+  if (code <= 2) return CloudSun
+  if (code === 3) return Cloud
+  if (code <= 48) return CloudFog
+  if (code <= 55) return CloudDrizzle
+  if (code <= 67) return CloudRain
+  if (code <= 77) return CloudSnow
+  if (code <= 82) return CloudRain
+  if (code <= 86) return CloudSnow
+  return CloudLightning
+}
+
+function wmoColor(code: number): string {
+  if (code === 0) return 'text-amber-400'
+  if (code <= 2) return 'text-amber-300'
+  if (code === 3) return 'text-gray-400'
+  if (code <= 48) return 'text-gray-400'
+  if (code <= 55) return 'text-blue-300'
+  if (code <= 67) return 'text-blue-500'
+  if (code <= 77) return 'text-blue-300'
+  if (code <= 82) return 'text-blue-500'
+  if (code <= 86) return 'text-blue-300'
+  return 'text-amber-500'
+}
+
+function WeatherIcon({ code, size }: { code: number; size: number }) {
+  const Icon = wmoIcon(code)
+  return <Icon size={size} className={wmoColor(code)} />
+}
+
+function dayLabel(dateStr: string, todayStr: string): string {
+  const diff = Math.round((new Date(dateStr + 'T12:00:00').getTime() - new Date(todayStr + 'T12:00:00').getTime()) / 86_400_000)
+  if (diff === 0) return 'Auj.'
+  if (diff === -1) return 'Hier'
+  if (diff === -2) return 'Av.-h.'
+  if (diff === 1) return 'Dem.'
+  if (diff === 2) return 'Ap.-d.'
+  return new Date(dateStr + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short' })
+}
+
+function WeatherPanel({ data }: { data: WeatherData }) {
+  const today = data.days[data.todayIndex]
+  if (!today) return null
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 p-4">
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Météo locale</p>
+      <div className="flex items-start gap-3 mb-4">
+        <WeatherIcon code={data.current.weatherCode} size={32} />
+        <div>
+          <p className="text-xs text-gray-500 leading-tight">{weatherCodeLabel(data.current.weatherCode)}</p>
+          <p className="text-sm font-semibold text-gray-800">{today.tempMin}° / {today.tempMax}°</p>
+          <p className="text-xs text-gray-400">Ressenti {data.current.apparentTemp}°</p>
+          <p className="text-xs text-gray-400">{today.precipMm} mm · {data.current.humidity}% hum.</p>
+        </div>
+      </div>
+      <div className="flex gap-1">
+        {([-2, -1, 0, 1, 2] as const).map(offset => {
+          const day = data.days[data.todayIndex + offset]
+          if (!day) return null
+          const isToday = offset === 0
+          return (
+            <div
+              key={day.date}
+              className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-lg ${
+                isToday ? 'bg-green-50 border border-green-200' : 'bg-gray-50'
+              }`}
+            >
+              <span className={`text-[10px] font-medium ${isToday ? 'text-green-700' : 'text-gray-400'}`}>
+                {dayLabel(day.date, today.date)}
+              </span>
+              <WeatherIcon code={day.weatherCode} size={16} />
+              <span className="text-[10px] font-semibold text-gray-700">{day.tempMax}°</span>
+              <span className="text-[10px] text-gray-400">{day.tempMin}°</span>
+              <span className="text-[10px] text-blue-400">{day.precipMm} mm</span>
+            </div>
+          )
+        })}
+      </div>
+      <p className="text-[10px] text-gray-300 text-right mt-2">Open-Meteo</p>
+    </div>
+  )
 }
 
 function MetaRow({ label, value }: { label: string; value: string }) {
@@ -39,6 +133,9 @@ export default function Home() {
   const [selection, setSelection] = useState<Selection | null>(null)
   const [selectedIndex, setSelectedIndex] = useState<IndexType>('RGB')
   const fetchedIds = useRef(new Set<string>())
+  const weatherCache = useRef<Record<string, WeatherData>>({})
+  const lastWeatherParcelId = useRef<string | null>(null)
+  const [currentWeather, setCurrentWeather] = useState<WeatherState>(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -65,6 +162,29 @@ export default function Home() {
         })
     })
   }, [router])
+
+  useEffect(() => {
+    if (!selection) {
+      setCurrentWeather(null)
+      lastWeatherParcelId.current = null
+      return
+    }
+    const { id, geometry } = selection.parcel
+    if (id === lastWeatherParcelId.current) return
+    lastWeatherParcelId.current = id
+    const cached = weatherCache.current[id]
+    if (cached) { setCurrentWeather(cached); return }
+    setCurrentWeather('loading')
+    const [lat, lon] = parcelCentroid(geometry)
+    fetchWeather(lat, lon)
+      .then(data => {
+        weatherCache.current[id] = data
+        if (lastWeatherParcelId.current === id) setCurrentWeather(data)
+      })
+      .catch(() => {
+        if (lastWeatherParcelId.current === id) setCurrentWeather('error')
+      })
+  }, [selection])
 
   useEffect(() => {
     parcels.forEach(parcel => {
@@ -238,20 +358,37 @@ export default function Home() {
                   <ParcelImageViewer item={selection.item} parcelGeometry={selection.parcel.geometry} index={selectedIndex} />
                 </div>
 
-                <div className="w-56 flex-shrink-0 bg-white rounded-xl border border-gray-100 p-4 self-start">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Métadonnées</p>
-                  {selection.item.platform && (
-                    <MetaRow label="Satellite" value={selection.item.platform.replace('sentinel-', 'Sentinel-').toUpperCase()} />
+                <div className="w-56 flex-shrink-0 flex flex-col gap-3 self-start">
+                  <div className="bg-white rounded-xl border border-gray-100 p-4">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Métadonnées</p>
+                    {selection.item.platform && (
+                      <MetaRow label="Satellite" value={selection.item.platform.replace('sentinel-', 'Sentinel-').toUpperCase()} />
+                    )}
+                    {selection.item.sunElevation !== null && (
+                      <MetaRow label="Élévation soleil" value={`${Math.round(selection.item.sunElevation)}°`} />
+                    )}
+                    <MetaRow label="Couverture nuageuse" value={pct(selection.item.cloudCover)} />
+                    <MetaRow label="Ombres nuages" value={pct(selection.item.cloudShadow)} />
+                    <MetaRow label="Végétation" value={pct(selection.item.vegetation)} />
+                    <MetaRow label="Eau" value={pct(selection.item.water)} />
+                    <MetaRow label="Neige / glace" value={pct(selection.item.snow)} />
+                    <MetaRow label="Pixels sans donnée" value={pct(selection.item.nodata)} />
+                  </div>
+                  {currentWeather === 'loading' && (
+                    <div className="bg-white rounded-xl border border-gray-100 p-4">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Météo locale</p>
+                      <p className="text-xs text-gray-400">Chargement…</p>
+                    </div>
                   )}
-                  {selection.item.sunElevation !== null && (
-                    <MetaRow label="Élévation soleil" value={`${Math.round(selection.item.sunElevation)}°`} />
+                  {currentWeather === 'error' && (
+                    <div className="bg-white rounded-xl border border-gray-100 p-4">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Météo locale</p>
+                      <p className="text-xs text-red-400">Météo indisponible</p>
+                    </div>
                   )}
-                  <MetaRow label="Couverture nuageuse" value={pct(selection.item.cloudCover)} />
-                  <MetaRow label="Ombres nuages" value={pct(selection.item.cloudShadow)} />
-                  <MetaRow label="Végétation" value={pct(selection.item.vegetation)} />
-                  <MetaRow label="Eau" value={pct(selection.item.water)} />
-                  <MetaRow label="Neige / glace" value={pct(selection.item.snow)} />
-                  <MetaRow label="Pixels sans donnée" value={pct(selection.item.nodata)} />
+                  {currentWeather !== null && currentWeather !== 'loading' && currentWeather !== 'error' && (
+                    <WeatherPanel data={currentWeather} />
+                  )}
                 </div>
               </div>
             </div>
