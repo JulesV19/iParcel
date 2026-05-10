@@ -8,14 +8,15 @@ export default function CGU() {
       <div className="max-w-2xl mx-auto bg-white rounded-xl border border-gray-100 p-8">
         <Link href="/" className="text-xs text-green-700 hover:underline mb-6 inline-block">← Retour</Link>
         <h1 className="text-xl font-bold text-gray-900 mb-2">{"Conditions générales d'utilisation"}</h1>
-        <p className="text-xs text-gray-400 mb-8">Dernière mise à jour : 5 mai 2026</p>
+        <p className="text-xs text-gray-400 mb-8">Dernière mise à jour : 9 mai 2026</p>
 
         <section className="mb-6">
           <h2 className="text-sm font-semibold text-gray-700 mb-2">1. Présentation du service</h2>
           <p className="text-sm text-gray-600">
             iParcel est un service en ligne permettant aux utilisateurs de délimiter des parcelles
-            agricoles sur une carte satellite et de consulter les images satellitaires Sentinel-2
-            correspondantes. Le service est édité par Jules Videgrain à titre personnel.
+            agricoles sur une carte satellite, de consulter les images satellitaires Sentinel-2
+            correspondantes, et de consigner des notes de terrain par parcelle.
+            Le service est édité par Jules Videgrain à titre personnel.
           </p>
         </section>
 
@@ -65,7 +66,7 @@ export default function CGU() {
           <p className="text-sm text-gray-600">
             L'utilisateur peut supprimer son compte à tout moment depuis son tableau de bord
             (bouton "Supprimer mon compte"). Cette action supprime immédiatement et
-            définitivement toutes ses données (parcelles et compte).
+            définitivement toutes ses données (parcelles, notes de terrain et compte).
           </p>
         </section>
 

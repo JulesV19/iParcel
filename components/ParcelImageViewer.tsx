@@ -203,7 +203,13 @@ export default function ParcelImageViewer({ item, parcelGeometry, index }: Props
     if (!wrapperRef.current) return
     const ro = new ResizeObserver(([entry]) => {
       const w = Math.max(0, Math.floor(entry.contentRect.width))
-      setSquareSize(prev => prev === w ? prev : w)
+      const h = Math.max(0, Math.floor(entry.contentRect.height))
+      // On desktop the wrapper has md:h-full so h is the available height.
+      // Subtract ~100px for the legend + gap below the image.
+      // On mobile the wrapper height is unconstrained so h is unreliable — use width only.
+      const desktop = window.matchMedia('(min-width: 768px)').matches
+      const size = (desktop && h > 100) ? Math.min(w, h - 100) : w
+      setSquareSize(prev => prev === size ? prev : size)
     })
     ro.observe(wrapperRef.current)
     return () => ro.disconnect()
@@ -381,7 +387,7 @@ export default function ParcelImageViewer({ item, parcelGeometry, index }: Props
   }, [item, parcelGeometry, index])
 
   return (
-    <div ref={wrapperRef} className="w-full flex flex-col items-center gap-3">
+    <div ref={wrapperRef} className="w-full md:h-full flex flex-col items-center gap-3">
       <div
         className="bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0"
         style={{ width: squareSize, height: squareSize }}

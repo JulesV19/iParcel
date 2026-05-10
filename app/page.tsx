@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { fetchSentinelDates, formatDate } from '@/lib/stac'
 import type { SentinelItem } from '@/lib/stac'
-import type { Parcel } from '@/lib/types'
+import type { Parcel, Note } from '@/lib/types'
 import ParcelImageViewer, { type IndexType } from '@/components/ParcelImageViewer'
 import {
   Sun, Cloud, CloudSun, CloudRain, CloudSnow, CloudLightning, CloudDrizzle, CloudFog,
@@ -83,22 +83,27 @@ function WeatherPanel({ data }: { data: WeatherData }) {
       <div className="flex gap-1">
         {([-2, -1, 0, 1, 2] as const).map(offset => {
           const day = data.days[data.todayIndex + offset]
-          if (!day) return null
           const isToday = offset === 0
           return (
             <div
-              key={day.date}
+              key={offset}
               className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-lg ${
                 isToday ? 'bg-green-50 border border-green-200' : 'bg-gray-50'
               }`}
             >
-              <span className={`text-[10px] font-medium ${isToday ? 'text-green-700' : 'text-gray-400'}`}>
-                {dayLabel(day.date, today.date)}
-              </span>
-              <WeatherIcon code={day.weatherCode} size={16} />
-              <span className="text-[10px] font-semibold text-gray-700">{day.tempMax}°</span>
-              <span className="text-[10px] text-gray-400">{day.tempMin}°</span>
-              <span className="text-[10px] text-blue-400">{day.precipMm} mm</span>
+              {day ? (
+                <>
+                  <span className={`text-[10px] font-medium ${isToday ? 'text-green-700' : 'text-gray-400'}`}>
+                    {dayLabel(day.date, today.date)}
+                  </span>
+                  <WeatherIcon code={day.weatherCode} size={16} />
+                  <span className="text-[10px] font-semibold text-gray-700">{day.tempMax}°</span>
+                  <span className="text-[10px] text-gray-400">{day.tempMin}°</span>
+                  <span className="text-[10px] text-blue-400">{day.precipMm} mm</span>
+                </>
+              ) : (
+                <span className="text-[10px] text-gray-300">—</span>
+              )}
             </div>
           )
         })}
@@ -106,6 +111,29 @@ function WeatherPanel({ data }: { data: WeatherData }) {
       <p className="text-[10px] text-gray-300 text-right mt-2">Open-Meteo</p>
     </WeatherCard>
   )
+}
+
+function formatNoteDate(dateStr: string): string {
+  return new Date(dateStr + 'T12:00:00').toLocaleDateString('fr-FR', {
+    day: 'numeric', month: 'long', year: 'numeric',
+  })
+}
+
+function parcelAreaHa(geometry: GeoJSON.Polygon): string {
+  const coords = geometry.coordinates[0]
+  const R = 6371008.8
+  let area = 0
+  for (let i = 0; i < coords.length; i++) {
+    const j = (i + 1) % coords.length
+    const lon1 = coords[i][0] * Math.PI / 180
+    const lat1 = coords[i][1] * Math.PI / 180
+    const lon2 = coords[j][0] * Math.PI / 180
+    const lat2 = coords[j][1] * Math.PI / 180
+    area += (lon2 - lon1) * (2 + Math.sin(lat1) + Math.sin(lat2))
+  }
+  const ha = Math.abs(area) * R * R / 2 / 10_000
+  if (ha < 0.01) return `${Math.round(ha * 10_000)} m²`
+  return `${ha.toFixed(2)} ha`
 }
 
 function MetaRow({ label, value }: { label: string; value: string }) {
@@ -136,12 +164,22 @@ export default function Home() {
   const weatherCache = useRef<Record<string, WeatherData>>({})
   const lastWeatherParcelId = useRef<string | null>(null)
   const [currentWeather, setCurrentWeather] = useState<WeatherState>(null)
+  const [renaming, setRenaming] = useState(false)
+  const [renameValue, setRenameValue] = useState('')
+  const [userId, setUserId] = useState('')
+  const [notes, setNotes] = useState<Record<string, Note[]>>({})
+  const [newNoteContent, setNewNoteContent] = useState('')
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
+  const [editValue, setEditValue] = useState('')
+  const [savingNote, setSavingNote] = useState(false)
+  const fetchedNoteIds = useRef(new Set<string>())
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) { router.push('/login'); return }
       setEmail(session.user.email ?? '')
       const uid = session.user.id
+      setUserId(uid)
       supabase
         .from('parcels')
         .select('id, name, geometry')
@@ -187,6 +225,27 @@ export default function Home() {
   }, [selection?.parcel.id])
 
   useEffect(() => {
+    setRenaming(false)
+    setNewNoteContent('')
+    setEditingNoteId(null)
+  }, [selection?.parcel.id])
+
+  useEffect(() => {
+    const parcelId = selection?.parcel.id
+    if (!parcelId || fetchedNoteIds.current.has(parcelId)) return
+    fetchedNoteIds.current.add(parcelId)
+    supabase
+      .from('notes')
+      .select('id, parcel_id, content, date')
+      .eq('parcel_id', parcelId)
+      .order('date', { ascending: false })
+      .then(({ data, error }) => {
+        if (error) console.error('Notes fetch error:', error)
+        setNotes(prev => ({ ...prev, [parcelId]: (data ?? []) as Note[] }))
+      })
+  }, [selection?.parcel.id])
+
+  useEffect(() => {
     parcels.forEach(parcel => {
       if (fetchedIds.current.has(parcel.id)) return
       fetchedIds.current.add(parcel.id)
@@ -202,6 +261,57 @@ export default function Home() {
     if (error) { alert('Erreur lors de la suppression. Réessayez.'); return }
     setParcels(prev => prev.filter(p => p.id !== id))
     if (selection?.parcel.id === id) setSelection(null)
+  }
+
+  async function handleRename(id: string, newName: string) {
+    const trimmed = newName.trim()
+    if (!trimmed) return
+    const { error } = await supabase.from('parcels').update({ name: trimmed }).eq('id', id)
+    if (error) { alert('Erreur lors du renommage. Réessayez.'); return }
+    setParcels(prev => prev.map(p => p.id === id ? { ...p, name: trimmed } : p))
+    setSelection(prev => prev ? { ...prev, parcel: { ...prev.parcel, name: trimmed } } : null)
+    setRenaming(false)
+  }
+
+  async function addNote() {
+    const trimmed = newNoteContent.trim()
+    if (!trimmed || !selection || savingNote) return
+    const parcelId = selection.parcel.id
+    const d = new Date()
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    setSavingNote(true)
+    const { data, error } = await supabase
+      .from('notes')
+      .insert({ parcel_id: parcelId, content: trimmed, date: today, user_id: userId })
+      .select('id, parcel_id, content, date')
+      .single()
+    setSavingNote(false)
+    if (error) { alert('Erreur lors de l\'ajout de la note.'); return }
+    if (data) {
+      setNotes(prev => ({ ...prev, [parcelId]: [data as Note, ...(prev[parcelId] ?? [])] }))
+      setNewNoteContent('')
+    }
+  }
+
+  async function deleteNote(id: string) {
+    if (!selection) return
+    const parcelId = selection.parcel.id
+    const { error } = await supabase.from('notes').delete().eq('id', id)
+    if (error) { alert('Erreur lors de la suppression de la note.'); return }
+    setNotes(prev => ({ ...prev, [parcelId]: (prev[parcelId] ?? []).filter(n => n.id !== id) }))
+  }
+
+  async function saveNoteEdit(id: string) {
+    const trimmed = editValue.trim()
+    if (!trimmed || !selection) return
+    const parcelId = selection.parcel.id
+    const { error } = await supabase.from('notes').update({ content: trimmed }).eq('id', id)
+    if (error) { alert('Erreur lors de la modification de la note.'); return }
+    setNotes(prev => ({
+      ...prev,
+      [parcelId]: (prev[parcelId] ?? []).map(n => n.id === id ? { ...n, content: trimmed } : n),
+    }))
+    setEditingNoteId(null)
   }
 
   async function handleLogout() {
@@ -273,14 +383,9 @@ export default function Home() {
               <ul className="flex flex-col gap-3">
                 {parcels.map(parcel => (
                   <li key={parcel.id} className="bg-gray-50 rounded-lg border border-gray-100 p-3">
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="mb-2">
                       <span className="text-sm font-medium text-gray-800 truncate">{parcel.name}</span>
-                      <button
-                        onClick={() => deleteParcel(parcel.id)}
-                        className="text-xs text-red-400 hover:text-red-600 flex-shrink-0 ml-2 py-1 px-1"
-                      >
-                        Supprimer
-                      </button>
+                      <p className="text-xs text-green-600">{parcelAreaHa(parcel.geometry)}</p>
                     </div>
                     <p className="text-gray-400 text-xs mb-2">Images disponibles</p>
                     {dates[parcel.id] === undefined ? (
@@ -338,8 +443,43 @@ export default function Home() {
 
               <div className="px-4 md:px-6 pt-4 md:pt-6 pb-3 flex-shrink-0 flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-0">
                 <div>
-                  <h2 className="text-base font-semibold text-gray-800">{selection.parcel.name}</h2>
+                  {renaming ? (
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <input
+                        type="text"
+                        value={renameValue}
+                        onChange={e => setRenameValue(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && renameValue.trim()) handleRename(selection.parcel.id, renameValue)
+                          if (e.key === 'Escape') setRenaming(false)
+                        }}
+                        autoFocus
+                        className="border rounded px-2 py-1 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500 w-48"
+                      />
+                      <button onClick={() => handleRename(selection.parcel.id, renameValue)} disabled={!renameValue.trim()} className="text-xs text-green-600 hover:underline disabled:opacity-40 disabled:cursor-not-allowed">Valider</button>
+                      <button onClick={() => setRenaming(false)} className="text-xs text-gray-400 hover:underline">Annuler</button>
+                    </div>
+                  ) : (
+                    <h2 className="text-base font-semibold text-gray-800">{selection.parcel.name}</h2>
+                  )}
+                  <p className="text-xs text-green-600">{parcelAreaHa(selection.parcel.geometry)}</p>
                   <p className="text-sm text-gray-400">{formatDate(selection.item.date)}</p>
+                  {!renaming && (
+                    <div className="flex gap-3 mt-1">
+                      <button
+                        onClick={() => { setRenaming(true); setRenameValue(selection.parcel.name) }}
+                        className="text-xs text-gray-400 hover:text-gray-600 hover:underline"
+                      >
+                        Renommer
+                      </button>
+                      <button
+                        onClick={() => deleteParcel(selection.parcel.id)}
+                        className="text-xs text-red-400 hover:text-red-600 hover:underline"
+                      >
+                        Supprimer
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <div className="flex gap-1">
                   {(['RGB', 'NDVI', 'NDWI', 'NDMI'] as const).map(idx => (
@@ -359,11 +499,11 @@ export default function Home() {
               </div>
 
               <div className="flex flex-col md:flex-row gap-4 md:gap-6 px-4 md:px-6 pb-6 md:flex-1 md:min-h-0 md:overflow-hidden">
-                <div className="w-full md:flex-1 md:min-h-0 md:min-w-0">
+                <div className="w-full md:flex-1 md:min-h-0 md:min-w-0 md:h-full">
                   <ParcelImageViewer item={selection.item} parcelGeometry={selection.parcel.geometry} index={selectedIndex} />
                 </div>
 
-                <div className="md:w-56 md:flex-shrink-0 flex flex-col gap-3 md:self-start">
+                <div className="md:w-56 md:flex-shrink-0 flex flex-col gap-3 md:overflow-y-auto">
                   <div className="bg-white rounded-xl border border-gray-100 p-4">
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Métadonnées</p>
                     {selection.item.platform && (
@@ -392,6 +532,72 @@ export default function Home() {
                   {currentWeather !== null && currentWeather !== 'loading' && currentWeather !== 'error' && (
                     <WeatherPanel data={currentWeather} />
                   )}
+
+                  <div className="bg-white rounded-xl border border-gray-100 p-4">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Notes de terrain</p>
+                    <div className="flex flex-col gap-2 mb-3">
+                      <textarea
+                        value={newNoteContent}
+                        onChange={e => setNewNoteContent(e.target.value)}
+                        placeholder="Ajouter une observation…"
+                        rows={2}
+                        className="border rounded px-2 py-1.5 text-xs text-gray-800 resize-none focus:outline-none focus:ring-2 focus:ring-green-500"
+                      />
+                      <button
+                        onClick={addNote}
+                        disabled={!newNoteContent.trim() || savingNote}
+                        className="self-end text-xs bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {savingNote ? '…' : 'Ajouter'}
+                      </button>
+                    </div>
+                    {notes[selection.parcel.id] === undefined ? (
+                      <p className="text-xs text-gray-300 text-center">Chargement…</p>
+                    ) : notes[selection.parcel.id].length === 0 ? (
+                      <p className="text-xs text-gray-300 text-center">Aucune note</p>
+                    ) : (
+                      <ul className="flex flex-col gap-3">
+                        {notes[selection.parcel.id].map(note => (
+                          <li key={note.id} className="border-l-2 border-green-200 pl-2">
+                            <p className="text-[10px] text-gray-400 mb-0.5">{formatNoteDate(note.date)}</p>
+                            {editingNoteId === note.id ? (
+                              <div className="flex flex-col gap-1">
+                                <textarea
+                                  value={editValue}
+                                  onChange={e => setEditValue(e.target.value)}
+                                  rows={2}
+                                  autoFocus
+                                  className="border rounded px-2 py-1 text-xs text-gray-800 resize-none focus:outline-none focus:ring-2 focus:ring-green-500"
+                                />
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => saveNoteEdit(note.id)}
+                                    disabled={!editValue.trim()}
+                                    className="text-xs text-green-600 hover:underline disabled:opacity-40 disabled:cursor-not-allowed"
+                                  >Valider</button>
+                                  <button onClick={() => setEditingNoteId(null)} className="text-xs text-gray-400 hover:underline">Annuler</button>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                <p className="text-xs text-gray-700 whitespace-pre-wrap">{note.content}</p>
+                                <div className="flex gap-2 mt-0.5">
+                                  <button
+                                    onClick={() => { setEditingNoteId(note.id); setEditValue(note.content) }}
+                                    className="text-[10px] text-gray-400 hover:underline"
+                                  >Modifier</button>
+                                  <button
+                                    onClick={() => deleteNote(note.id)}
+                                    className="text-[10px] text-red-400 hover:underline"
+                                  >Supprimer</button>
+                                </div>
+                              </>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 </div>
               </div>
             </>

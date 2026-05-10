@@ -41,19 +41,23 @@ export function parcelCentroid(geometry: GeoJSON.Polygon): [number, number] {
   return [lat, lon]
 }
 
-function localDateStr(): string {
-  const d = new Date()
+function fmtDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 export async function fetchWeather(lat: number, lon: number): Promise<WeatherData> {
+  const now = new Date()
+  const todayStr = fmtDate(now)
+  const start = new Date(now); start.setDate(now.getDate() - 2)
+  const end = new Date(now); end.setDate(now.getDate() + 2)
+
   const params = new URLSearchParams({
     latitude: lat.toFixed(5),
     longitude: lon.toFixed(5),
     daily: 'temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode',
     current: 'apparent_temperature,relative_humidity_2m,wind_speed_10m,weathercode',
-    past_days: '2',
-    forecast_days: '3',
+    start_date: fmtDate(start),
+    end_date: fmtDate(end),
     timezone: 'auto',
   })
 
@@ -69,7 +73,6 @@ export async function fetchWeather(lat: number, lon: number): Promise<WeatherDat
   const safePrecip = (v: unknown): number =>
     typeof v === 'number' ? Math.round(v * 10) / 10 : 0
 
-  const todayStr = localDateStr()
   const todayIndex = (json.daily.time as string[]).findIndex(d => d === todayStr)
 
   const days: DayWeather[] = (json.daily.time as string[]).map((date, i) => ({

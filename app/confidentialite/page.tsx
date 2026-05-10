@@ -8,7 +8,7 @@ export default function Confidentialite() {
       <div className="max-w-2xl mx-auto bg-white rounded-xl border border-gray-100 p-8">
         <Link href="/" className="text-xs text-green-700 hover:underline mb-6 inline-block">← Retour</Link>
         <h1 className="text-xl font-bold text-gray-900 mb-2">Politique de confidentialité</h1>
-        <p className="text-xs text-gray-400 mb-8">Dernière mise à jour : 7 mai 2026</p>
+        <p className="text-xs text-gray-400 mb-8">Dernière mise à jour : 9 mai 2026</p>
 
         <section className="mb-6">
           <h2 className="text-sm font-semibold text-gray-700 mb-2">Responsable du traitement</h2>
@@ -23,6 +23,7 @@ export default function Confidentialite() {
             <li><strong>Adresse e-mail</strong> — pour la création et l'authentification de votre compte.</li>
             <li><strong>Coordonnées géographiques de vos parcelles</strong> — polygones dessinés sur la carte, stockés en base de données.</li>
             <li><strong>Noms de parcelles</strong> — librement saisis par l'utilisateur.</li>
+            <li><strong>Notes de terrain</strong> — textes libres saisis par l'utilisateur, associés à une parcelle et datés automatiquement.</li>
           </ul>
           <p className="text-sm text-gray-600 mt-2">
             Les coordonnées géographiques du centroïde de chaque parcelle (latitude et longitude)
@@ -39,6 +40,7 @@ export default function Confidentialite() {
             <li>Sauvegarde et affichage de vos parcelles</li>
             <li>Consultation des images satellitaires Sentinel-2 correspondantes</li>
             <li>Affichage des données météorologiques locales à la parcelle</li>
+            <li>Enregistrement et consultation de vos notes de terrain</li>
           </ul>
         </section>
 
