@@ -4,6 +4,7 @@ export interface DayWeather {
   tempMin: number
   precipMm: number
   weatherCode: number
+  windSpeedMax: number
 }
 
 export interface WeatherData {
@@ -54,7 +55,7 @@ export async function fetchWeather(lat: number, lon: number): Promise<WeatherDat
   const params = new URLSearchParams({
     latitude: lat.toFixed(5),
     longitude: lon.toFixed(5),
-    daily: 'temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode',
+    daily: 'temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode,wind_speed_10m_max',
     current: 'apparent_temperature,relative_humidity_2m,wind_speed_10m,weathercode',
     start_date: fmtDate(start),
     end_date: fmtDate(end),
@@ -81,6 +82,7 @@ export async function fetchWeather(lat: number, lon: number): Promise<WeatherDat
     tempMin: safeRound(json.daily.temperature_2m_min[i]),
     precipMm: safePrecip(json.daily.precipitation_sum[i]),
     weatherCode: safeRound(json.daily.weathercode[i]),
+    windSpeedMax: safeRound(json.daily.wind_speed_10m_max[i]),
   }))
 
   return {

@@ -6,8 +6,10 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { fetchSentinelDates, formatDate } from '@/lib/stac'
 import type { SentinelItem } from '@/lib/stac'
-import type { Parcel, Note } from '@/lib/types'
+import type { Parcel, Note, Intervention, InterventionCategory } from '@/lib/types'
 import ParcelImageViewer, { type IndexType } from '@/components/ParcelImageViewer'
+import InterventionModal from '@/components/InterventionModal'
+import InterventionDetailModal from '@/components/InterventionDetailModal'
 import {
   Sun, Cloud, CloudSun, CloudRain, CloudSnow, CloudLightning, CloudDrizzle, CloudFog,
   type LucideIcon,
@@ -18,7 +20,7 @@ import {
 } from '@/lib/weather'
 
 interface Selection {
-  item: SentinelItem
+  item: SentinelItem | null
   parcel: Parcel
 }
 
@@ -149,6 +151,57 @@ function pct(n: number | null): string {
   return n !== null ? `${Math.round(n * 10) / 10} %` : '—'
 }
 
+const CATEGORY_LABELS: Record<InterventionCategory, string> = {
+  travail_sol:      'Travail du sol',
+  semis:            'Semis',
+  fertilisation:    'Fertilisation',
+  traitement_phyto: 'Traitement phyto',
+  irrigation:       'Irrigation',
+  recolte:          'Récolte',
+  observation:      'Observation',
+  autre:            'Autre',
+}
+
+const CATEGORY_BORDER: Record<InterventionCategory, string> = {
+  travail_sol:      'border-amber-400',
+  semis:            'border-green-400',
+  fertilisation:    'border-blue-400',
+  traitement_phyto: 'border-red-400',
+  irrigation:       'border-cyan-400',
+  recolte:          'border-yellow-400',
+  observation:      'border-purple-400',
+  autre:            'border-gray-300',
+}
+
+function InterventionCard({ i, onClick }: { i: Intervention; onClick: () => void }) {
+  const detail = (() => {
+    if (i.category === 'traitement_phyto') return i.phyto_produit_nom ?? ''
+    if (i.category === 'fertilisation')    return i.ferti_produit ?? ''
+    if (i.category === 'semis')            return i.semis_variete ?? ''
+    if (i.category === 'recolte' && i.recolte_rendement_value)
+      return `${i.recolte_rendement_value} ${i.recolte_rendement_unit ?? 't/ha'}`
+    return ''
+  })()
+  return (
+    <li
+      className={`border-l-2 pl-2 pr-1 py-0.5 rounded-r cursor-pointer hover:bg-gray-50 transition-colors ${CATEGORY_BORDER[i.category]}`}
+      onClick={onClick}
+    >
+      <p className="text-[10px] text-gray-400 mb-0.5">{formatNoteDate(i.date)}</p>
+      <p className="text-xs font-medium text-gray-700">
+        {CATEGORY_LABELS[i.category]}
+        {i.sub_type && <span className="font-normal text-gray-500"> · {i.sub_type}</span>}
+      </p>
+      {i.culture && (
+        <p className="text-[10px] text-gray-500">
+          {i.culture}{i.stade_bbch ? ` · ${i.stade_bbch}` : ''}
+        </p>
+      )}
+      {detail && <p className="text-[10px] text-gray-600 mt-0.5">{detail}</p>}
+    </li>
+  )
+}
+
 export default function Home() {
   const router = useRouter()
   const [email, setEmail] = useState('')
@@ -164,6 +217,7 @@ export default function Home() {
   const weatherCache = useRef<Record<string, WeatherData>>({})
   const lastWeatherParcelId = useRef<string | null>(null)
   const [currentWeather, setCurrentWeather] = useState<WeatherState>(null)
+  const [allWeather, setAllWeather] = useState<Record<string, WeatherData>>({})
   const [renaming, setRenaming] = useState(false)
   const [renameValue, setRenameValue] = useState('')
   const [userId, setUserId] = useState('')
@@ -173,6 +227,11 @@ export default function Home() {
   const [editValue, setEditValue] = useState('')
   const [savingNote, setSavingNote] = useState(false)
   const fetchedNoteIds = useRef(new Set<string>())
+  const [interventions, setInterventions] = useState<Record<string, Intervention[]>>({})
+  const [showInterventionModal, setShowInterventionModal] = useState(false)
+  const [viewingIntervention, setViewingIntervention] = useState<Intervention | null>(null)
+  const [editingIntervention, setEditingIntervention] = useState<Intervention | null>(null)
+  const fetchedInterventionIds = useRef(new Set<string>())
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -217,6 +276,7 @@ export default function Home() {
     fetchWeather(lat, lon)
       .then(data => {
         weatherCache.current[parcelId] = data
+        setAllWeather(prev => ({ ...prev, [parcelId]: data }))
         if (lastWeatherParcelId.current === parcelId) setCurrentWeather(data)
       })
       .catch(() => {
@@ -228,6 +288,24 @@ export default function Home() {
     setRenaming(false)
     setNewNoteContent('')
     setEditingNoteId(null)
+    setShowInterventionModal(false)
+    setViewingIntervention(null)
+    setEditingIntervention(null)
+  }, [selection?.parcel.id])
+
+  useEffect(() => {
+    const parcelId = selection?.parcel.id
+    if (!parcelId || fetchedInterventionIds.current.has(parcelId)) return
+    fetchedInterventionIds.current.add(parcelId)
+    supabase
+      .from('interventions')
+      .select('*')
+      .eq('parcel_id', parcelId)
+      .order('date', { ascending: false })
+      .then(({ data, error }) => {
+        if (error) console.error('Interventions fetch error:', error)
+        setInterventions(prev => ({ ...prev, [parcelId]: (data ?? []) as Intervention[] }))
+      })
   }, [selection?.parcel.id])
 
   useEffect(() => {
@@ -254,6 +332,32 @@ export default function Home() {
         .catch(() => setDates(prev => ({ ...prev, [parcel.id]: [] })))
     })
   }, [parcels])
+
+  // Chargement météo en avance pour toutes les parcelles (mini météo dans la liste)
+  useEffect(() => {
+    parcels.forEach(parcel => {
+      if (weatherCache.current[parcel.id]) {
+        setAllWeather(prev => prev[parcel.id] ? prev : { ...prev, [parcel.id]: weatherCache.current[parcel.id]! })
+        return
+      }
+      const [lat, lon] = parcelCentroid(parcel.geometry)
+      fetchWeather(lat, lon)
+        .then(data => {
+          weatherCache.current[parcel.id] = data
+          setAllWeather(prev => ({ ...prev, [parcel.id]: data }))
+        })
+        .catch(() => {})
+    })
+  }, [parcels])
+
+  // Auto-sélection de la date la plus récente quand les dates se chargent après le clic parcelle
+  useEffect(() => {
+    if (!selection || selection.item !== null) return
+    const parcelDates = dates[selection.parcel.id]
+    if (parcelDates?.length) {
+      setSelection(prev => prev ? { ...prev, item: parcelDates[0] } : null)
+    }
+  }, [dates, selection?.parcel.id])
 
   async function deleteParcel(id: string) {
     if (!window.confirm('Supprimer cette parcelle ?')) return
@@ -312,6 +416,29 @@ export default function Home() {
       [parcelId]: (prev[parcelId] ?? []).map(n => n.id === id ? { ...n, content: trimmed } : n),
     }))
     setEditingNoteId(null)
+  }
+
+  function handleInterventionSaved(intervention: Intervention) {
+    const parcelId = intervention.parcel_id
+    setInterventions(prev => {
+      const existing = prev[parcelId] ?? []
+      const idx = existing.findIndex(i => i.id === intervention.id)
+      if (idx >= 0) {
+        const updated = [...existing]
+        updated[idx] = intervention
+        return { ...prev, [parcelId]: updated }
+      }
+      return { ...prev, [parcelId]: [intervention, ...existing] }
+    })
+  }
+
+  function handleInterventionDeleted(id: string) {
+    if (!selection) return
+    const parcelId = selection.parcel.id
+    setInterventions(prev => ({
+      ...prev,
+      [parcelId]: (prev[parcelId] ?? []).filter(i => i.id !== id),
+    }))
   }
 
   async function handleLogout() {
@@ -381,47 +508,48 @@ export default function Home() {
               </p>
             ) : (
               <ul className="flex flex-col gap-3">
-                {parcels.map(parcel => (
-                  <li key={parcel.id} className="bg-gray-50 rounded-lg border border-gray-100 p-3">
-                    <div className="mb-2">
-                      <span className="text-sm font-medium text-gray-800 truncate">{parcel.name}</span>
-                      <p className="text-xs text-green-600">{parcelAreaHa(parcel.geometry)}</p>
-                    </div>
-                    <p className="text-gray-400 text-xs mb-2">Images disponibles</p>
-                    {dates[parcel.id] === undefined ? (
-                      <span className="text-gray-400 text-xs">Chargement…</span>
-                    ) : dates[parcel.id].length === 0 ? (
-                      <span className="text-gray-400 text-xs">Aucune image disponible</span>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
-                        {dates[parcel.id].map(item => {
-                          const active = selection?.item.date === item.date && selection?.parcel.id === parcel.id
-                          return (
-                            <button
-                              key={item.date}
-                              onClick={() => setSelection({ item, parcel })}
-                              className={`inline-flex items-center gap-1 px-3 py-2 rounded text-xs font-medium border transition-colors ${
-                                active
-                                  ? 'bg-green-600 border-green-600 text-white'
-                                  : 'bg-white border-green-200 text-green-800 hover:bg-green-50'
-                              }`}
-                            >
-                              {formatDate(item.date)}
-                              {item.cloudCover !== null && (
-                                <span className={`inline-flex items-center gap-0.5 ${active ? 'opacity-80' : 'opacity-50'}`}>
-                                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3">
-                                    <path d="M4.5 10.196A6 6 0 0 1 12 4a6 6 0 0 1 5.985 5.57A4.5 4.5 0 0 1 17.5 19H6a4.5 4.5 0 0 1-1.5-8.804Z" />
-                                  </svg>
-                                  {Math.round(item.cloudCover)}%
-                                </span>
-                              )}
-                            </button>
-                          )
-                        })}
+                {parcels.map(parcel => {
+                  const isActive = selection?.parcel.id === parcel.id
+                  const parcelDates = dates[parcel.id]
+                  const weather = allWeather[parcel.id]
+                  const todayWeather = weather ? weather.days[weather.todayIndex] : null
+                  return (
+                    <li
+                      key={parcel.id}
+                      onClick={() => setSelection({
+                        parcel,
+                        item: parcelDates?.[0] ?? null,
+                      })}
+                      className={`rounded-lg border p-3 cursor-pointer transition-colors ${
+                        isActive
+                          ? 'bg-green-50 border-green-300'
+                          : 'bg-gray-50 border-gray-100 hover:bg-gray-100'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-800 truncate">{parcel.name}</p>
+                          <p className="text-xs text-green-600">{parcelAreaHa(parcel.geometry)}</p>
+                        </div>
+                        {todayWeather && (
+                          <div className="flex items-center gap-1 shrink-0">
+                            <WeatherIcon code={todayWeather.weatherCode} size={14} />
+                            <span className="text-[11px] text-gray-500">{todayWeather.tempMin}°/{todayWeather.tempMax}°</span>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </li>
-                ))}
+                      {parcelDates === undefined && (
+                        <p className="text-[10px] text-gray-300 mt-1">Chargement des images…</p>
+                      )}
+                      {parcelDates?.length === 0 && (
+                        <p className="text-[10px] text-gray-300 mt-1">Aucune image disponible</p>
+                      )}
+                      {parcelDates?.length > 0 && (
+                        <p className="text-[10px] text-gray-400 mt-1">{parcelDates.length} image{parcelDates.length > 1 ? 's' : ''} disponible{parcelDates.length > 1 ? 's' : ''}</p>
+                      )}
+                    </li>
+                  )
+                })}
               </ul>
             )}
           </div>
@@ -430,7 +558,7 @@ export default function Home() {
         <main className={`flex-1 flex flex-col ${!selection ? 'hidden md:flex md:overflow-hidden' : 'overflow-y-auto md:overflow-hidden'}`}>
           {!selection ? (
             <div className="h-full flex items-center justify-center text-gray-300 text-sm">
-              Cliquez sur une date pour afficher l&apos;image
+              Sélectionnez une parcelle pour afficher le tableau de bord
             </div>
           ) : (
             <>
@@ -441,6 +569,7 @@ export default function Home() {
                 ← Mes parcelles
               </button>
 
+              {/* Header parcelle */}
               <div className="px-4 md:px-6 pt-4 md:pt-6 pb-3 flex-shrink-0 flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-0">
                 <div>
                   {renaming ? (
@@ -463,7 +592,6 @@ export default function Home() {
                     <h2 className="text-base font-semibold text-gray-800">{selection.parcel.name}</h2>
                   )}
                   <p className="text-xs text-green-600">{parcelAreaHa(selection.parcel.geometry)}</p>
-                  <p className="text-sm text-gray-400">{formatDate(selection.item.date)}</p>
                   {!renaming && (
                     <div className="flex gap-3 mt-1">
                       <button
@@ -498,12 +626,53 @@ export default function Home() {
                 </div>
               </div>
 
+              {/* Widget dates Sentinel */}
+              <div className="px-4 md:px-6 pb-3 flex-shrink-0">
+                {dates[selection.parcel.id] === undefined ? (
+                  <p className="text-xs text-gray-300">Chargement des images…</p>
+                ) : dates[selection.parcel.id].length === 0 ? (
+                  <p className="text-xs text-gray-300">Aucune image disponible</p>
+                ) : (
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {dates[selection.parcel.id].map(item => {
+                      const active = selection.item?.date === item.date
+                      return (
+                        <button
+                          key={item.date}
+                          onClick={() => setSelection(prev => prev ? { ...prev, item } : null)}
+                          className={`inline-flex items-center gap-1 px-3 py-2 rounded text-xs font-medium border shrink-0 transition-colors ${
+                            active
+                              ? 'bg-green-600 border-green-600 text-white'
+                              : 'bg-white border-green-200 text-green-800 hover:bg-green-50'
+                          }`}
+                        >
+                          {formatDate(item.date)}
+                          {item.cloudCover !== null && (
+                            <span className={`inline-flex items-center gap-0.5 ${active ? 'opacity-80' : 'opacity-50'}`}>
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3">
+                                <path d="M4.5 10.196A6 6 0 0 1 12 4a6 6 0 0 1 5.985 5.57A4.5 4.5 0 0 1 17.5 19H6a4.5 4.5 0 0 1-1.5-8.804Z" />
+                              </svg>
+                              {Math.round(item.cloudCover)}%
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
               <div className="flex flex-col md:flex-row gap-4 md:gap-6 px-4 md:px-6 pb-6 md:flex-1 md:min-h-0 md:overflow-hidden">
                 <div className="w-full md:flex-1 md:min-h-0 md:min-w-0 md:h-full">
-                  <ParcelImageViewer item={selection.item} parcelGeometry={selection.parcel.geometry} index={selectedIndex} />
+                  {selection.item ? (
+                    <ParcelImageViewer item={selection.item} parcelGeometry={selection.parcel.geometry} index={selectedIndex} />
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-gray-300 text-sm">Chargement des images…</div>
+                  )}
                 </div>
 
                 <div className="md:w-56 md:flex-shrink-0 flex flex-col gap-3 md:overflow-y-auto">
+                  {selection.item && (
                   <div className="bg-white rounded-xl border border-gray-100 p-4">
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Métadonnées</p>
                     {selection.item.platform && (
@@ -519,6 +688,7 @@ export default function Home() {
                     <MetaRow label="Neige / glace" value={pct(selection.item.snow)} />
                     <MetaRow label="Pixels sans donnée" value={pct(selection.item.nodata)} />
                   </div>
+                  )}
                   {currentWeather === 'loading' && (
                     <WeatherCard>
                       <p className="text-xs text-gray-400">Chargement…</p>
@@ -532,6 +702,29 @@ export default function Home() {
                   {currentWeather !== null && currentWeather !== 'loading' && currentWeather !== 'error' && (
                     <WeatherPanel data={currentWeather} />
                   )}
+
+                  <div className="bg-white rounded-xl border border-gray-100 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Interventions</p>
+                      <button
+                        onClick={() => setShowInterventionModal(true)}
+                        className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700"
+                      >
+                        + Nouvelle
+                      </button>
+                    </div>
+                    {interventions[selection.parcel.id] === undefined ? (
+                      <p className="text-xs text-gray-300 text-center">Chargement…</p>
+                    ) : interventions[selection.parcel.id].length === 0 ? (
+                      <p className="text-xs text-gray-300 text-center">Aucune intervention</p>
+                    ) : (
+                      <ul className="flex flex-col gap-3">
+                        {interventions[selection.parcel.id].map(intv => (
+                          <InterventionCard key={intv.id} i={intv} onClick={() => setViewingIntervention(intv)} />
+                        ))}
+                      </ul>
+                    )}
+                  </div>
 
                   <div className="bg-white rounded-xl border border-gray-100 p-4">
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Notes de terrain</p>
@@ -604,6 +797,26 @@ export default function Home() {
           )}
         </main>
       </div>
+
+      {viewingIntervention && (
+        <InterventionDetailModal
+          intervention={viewingIntervention}
+          onClose={() => setViewingIntervention(null)}
+          onEdit={() => { setEditingIntervention(viewingIntervention); setViewingIntervention(null) }}
+          onDeleted={handleInterventionDeleted}
+        />
+      )}
+
+      {(showInterventionModal || editingIntervention) && selection && (
+        <InterventionModal
+          parcelId={selection.parcel.id}
+          userId={userId}
+          currentWeather={currentWeather !== 'loading' && currentWeather !== 'error' ? currentWeather : null}
+          intervention={editingIntervention ?? undefined}
+          onClose={() => { setShowInterventionModal(false); setEditingIntervention(null) }}
+          onSaved={intervention => { handleInterventionSaved(intervention); setEditingIntervention(null) }}
+        />
+      )}
 
       <footer className="flex-shrink-0 border-t border-gray-100 bg-white px-6 py-2 flex gap-4 justify-center">
         <Link href="/mentions-legales" className="text-xs text-gray-400 hover:underline">Mentions légales</Link>
