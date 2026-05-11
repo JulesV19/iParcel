@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { fetchSentinelDates, formatDate } from '@/lib/stac'
 import type { SentinelItem } from '@/lib/stac'
-import type { Parcel, Note, Intervention, InterventionCategory } from '@/lib/types'
+import type { Parcel, Intervention, InterventionCategory } from '@/lib/types'
 import ParcelImageViewer, { type IndexType } from '@/components/ParcelImageViewer'
 import InterventionModal from '@/components/InterventionModal'
 import InterventionDetailModal from '@/components/InterventionDetailModal'
@@ -61,8 +61,8 @@ function dayLabel(dateStr: string, todayStr: string): string {
 
 function WeatherCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-4">
-      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Météo locale</p>
+    <div className="glass rounded-2xl p-4">
+      <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: 'var(--text-muted)' }}>Météo locale</p>
       {children}
     </div>
   )
@@ -76,10 +76,10 @@ function WeatherPanel({ data }: { data: WeatherData }) {
       <div className="flex items-start gap-3 mb-4">
         <WeatherIcon code={data.current.weatherCode} size={32} />
         <div>
-          <p className="text-xs text-gray-500 leading-tight">{weatherCodeLabel(data.current.weatherCode)}</p>
-          <p className="text-sm font-semibold text-gray-800">{today.tempMin}° / {today.tempMax}°</p>
-          <p className="text-xs text-gray-400">Ressenti {data.current.apparentTemp}°</p>
-          <p className="text-xs text-gray-400">{today.precipMm} mm · {data.current.humidity}% hum.</p>
+          <p className="text-xs leading-tight" style={{ color: 'var(--text-secondary)' }}>{weatherCodeLabel(data.current.weatherCode)}</p>
+          <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{today.tempMin}° / {today.tempMax}°</p>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Ressenti {data.current.apparentTemp}°</p>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{today.precipMm} mm · {data.current.humidity}% hum.</p>
         </div>
       </div>
       <div className="flex gap-1">
@@ -89,28 +89,32 @@ function WeatherPanel({ data }: { data: WeatherData }) {
           return (
             <div
               key={offset}
-              className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-lg ${
-                isToday ? 'bg-green-50 border border-green-200' : 'bg-gray-50'
-              }`}
+              className="flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-lg"
+              style={isToday ? {
+                background: 'var(--accent-bg)',
+                border: '1px solid var(--accent-border)',
+              } : {
+                background: 'rgba(0,0,0,0.02)',
+              }}
             >
               {day ? (
                 <>
-                  <span className={`text-[10px] font-medium ${isToday ? 'text-green-700' : 'text-gray-400'}`}>
+                  <span className="text-[10px] font-medium" style={{ color: isToday ? 'var(--accent)' : 'var(--text-muted)' }}>
                     {dayLabel(day.date, today.date)}
                   </span>
                   <WeatherIcon code={day.weatherCode} size={16} />
-                  <span className="text-[10px] font-semibold text-gray-700">{day.tempMax}°</span>
-                  <span className="text-[10px] text-gray-400">{day.tempMin}°</span>
+                  <span className="text-[10px] font-semibold" style={{ color: 'var(--text-primary)' }}>{day.tempMax}°</span>
+                  <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{day.tempMin}°</span>
                   <span className="text-[10px] text-blue-400">{day.precipMm} mm</span>
                 </>
               ) : (
-                <span className="text-[10px] text-gray-300">—</span>
+                <span className="text-[10px]" style={{ color: 'var(--text-faint)' }}>—</span>
               )}
             </div>
           )
         })}
       </div>
-      <p className="text-[10px] text-gray-300 text-right mt-2">Open-Meteo</p>
+      <p className="text-[10px] text-right mt-2" style={{ color: 'var(--text-faint)' }}>Open-Meteo</p>
     </WeatherCard>
   )
 }
@@ -140,9 +144,9 @@ function parcelAreaHa(geometry: GeoJSON.Polygon): string {
 
 function MetaRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between gap-4 py-1.5 border-b border-gray-100 last:border-0">
-      <span className="text-gray-400 text-xs">{label}</span>
-      <span className="text-gray-700 text-xs font-medium text-right">{value}</span>
+    <div className="flex justify-between gap-4 py-1.5 last:border-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
+      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</span>
+      <span className="text-xs font-medium text-right" style={{ color: 'var(--text-primary)' }}>{value}</span>
     </div>
   )
 }
@@ -184,20 +188,23 @@ function InterventionCard({ i, onClick }: { i: Intervention; onClick: () => void
   })()
   return (
     <li
-      className={`border-l-2 pl-2 pr-1 py-0.5 rounded-r cursor-pointer hover:bg-gray-50 transition-colors ${CATEGORY_BORDER[i.category]}`}
+      className={`border-l-2 pl-2 pr-1 py-1 rounded-r cursor-pointer transition-colors ${CATEGORY_BORDER[i.category]}`}
+      style={{ background: 'rgba(0,0,0,0.02)' }}
+      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,0,0,0.04)')}
+      onMouseLeave={e => (e.currentTarget.style.background = 'rgba(0,0,0,0.02)')}
       onClick={onClick}
     >
-      <p className="text-[10px] text-gray-400 mb-0.5">{formatNoteDate(i.date)}</p>
-      <p className="text-xs font-medium text-gray-700">
+      <p className="text-[10px] mb-0.5" style={{ color: 'var(--text-muted)' }}>{formatNoteDate(i.date)}</p>
+      <p className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
         {CATEGORY_LABELS[i.category]}
-        {i.sub_type && <span className="font-normal text-gray-500"> · {i.sub_type}</span>}
+        {i.sub_type && <span className="font-normal" style={{ color: 'var(--text-secondary)' }}> · {i.sub_type}</span>}
       </p>
       {i.culture && (
-        <p className="text-[10px] text-gray-500">
+        <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>
           {i.culture}{i.stade_bbch ? ` · ${i.stade_bbch}` : ''}
         </p>
       )}
-      {detail && <p className="text-[10px] text-gray-600 mt-0.5">{detail}</p>}
+      {detail && <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>{detail}</p>}
     </li>
   )
 }
@@ -221,12 +228,6 @@ export default function Home() {
   const [renaming, setRenaming] = useState(false)
   const [renameValue, setRenameValue] = useState('')
   const [userId, setUserId] = useState('')
-  const [notes, setNotes] = useState<Record<string, Note[]>>({})
-  const [newNoteContent, setNewNoteContent] = useState('')
-  const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
-  const [editValue, setEditValue] = useState('')
-  const [savingNote, setSavingNote] = useState(false)
-  const fetchedNoteIds = useRef(new Set<string>())
   const [interventions, setInterventions] = useState<Record<string, Intervention[]>>({})
   const [showInterventionModal, setShowInterventionModal] = useState(false)
   const [viewingIntervention, setViewingIntervention] = useState<Intervention | null>(null)
@@ -286,8 +287,6 @@ export default function Home() {
 
   useEffect(() => {
     setRenaming(false)
-    setNewNoteContent('')
-    setEditingNoteId(null)
     setShowInterventionModal(false)
     setViewingIntervention(null)
     setEditingIntervention(null)
@@ -308,20 +307,7 @@ export default function Home() {
       })
   }, [selection?.parcel.id])
 
-  useEffect(() => {
-    const parcelId = selection?.parcel.id
-    if (!parcelId || fetchedNoteIds.current.has(parcelId)) return
-    fetchedNoteIds.current.add(parcelId)
-    supabase
-      .from('notes')
-      .select('id, parcel_id, content, date')
-      .eq('parcel_id', parcelId)
-      .order('date', { ascending: false })
-      .then(({ data, error }) => {
-        if (error) console.error('Notes fetch error:', error)
-        setNotes(prev => ({ ...prev, [parcelId]: (data ?? []) as Note[] }))
-      })
-  }, [selection?.parcel.id])
+
 
   useEffect(() => {
     parcels.forEach(parcel => {
@@ -377,46 +363,6 @@ export default function Home() {
     setRenaming(false)
   }
 
-  async function addNote() {
-    const trimmed = newNoteContent.trim()
-    if (!trimmed || !selection || savingNote) return
-    const parcelId = selection.parcel.id
-    const d = new Date()
-    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-    setSavingNote(true)
-    const { data, error } = await supabase
-      .from('notes')
-      .insert({ parcel_id: parcelId, content: trimmed, date: today, user_id: userId })
-      .select('id, parcel_id, content, date')
-      .single()
-    setSavingNote(false)
-    if (error) { alert('Erreur lors de l\'ajout de la note.'); return }
-    if (data) {
-      setNotes(prev => ({ ...prev, [parcelId]: [data as Note, ...(prev[parcelId] ?? [])] }))
-      setNewNoteContent('')
-    }
-  }
-
-  async function deleteNote(id: string) {
-    if (!selection) return
-    const parcelId = selection.parcel.id
-    const { error } = await supabase.from('notes').delete().eq('id', id)
-    if (error) { alert('Erreur lors de la suppression de la note.'); return }
-    setNotes(prev => ({ ...prev, [parcelId]: (prev[parcelId] ?? []).filter(n => n.id !== id) }))
-  }
-
-  async function saveNoteEdit(id: string) {
-    const trimmed = editValue.trim()
-    if (!trimmed || !selection) return
-    const parcelId = selection.parcel.id
-    const { error } = await supabase.from('notes').update({ content: trimmed }).eq('id', id)
-    if (error) { alert('Erreur lors de la modification de la note.'); return }
-    setNotes(prev => ({
-      ...prev,
-      [parcelId]: (prev[parcelId] ?? []).map(n => n.id === id ? { ...n, content: trimmed } : n),
-    }))
-    setEditingNoteId(null)
-  }
 
   function handleInterventionSaved(intervention: Intervention) {
     const parcelId = intervention.parcel_id
@@ -457,53 +403,56 @@ export default function Home() {
   }
 
   if (loading) return (
-    <div className="h-screen flex items-center justify-center text-gray-400">Chargement…</div>
+    <div className="h-screen flex items-center justify-center" style={{ color: 'var(--text-muted)' }}>Chargement…</div>
   )
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
-      <header className="bg-white shadow-sm px-4 md:px-6 py-3 flex items-center justify-between flex-shrink-0">
-        <span className="font-bold text-green-700 text-lg">iParcel</span>
+    <div className="h-screen flex flex-col overflow-hidden">
+      <header className="glass px-4 md:px-6 py-3 flex items-center justify-between flex-shrink-0" style={{ borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderRadius: 0 }}>
+        <span className="font-bold text-lg" style={{ color: 'var(--accent)' }}>iParcel</span>
         <div className="flex items-center gap-3 md:gap-4 text-sm">
-          <span className="text-gray-400 hidden sm:inline">{email}</span>
-          <button onClick={handleLogout} className="text-red-500 hover:underline">
+          <span className="hidden sm:inline" style={{ color: 'var(--text-muted)' }}>{email}</span>
+          <button onClick={handleLogout} className="text-red-400 hover:text-red-300 transition-colors">
             Se déconnecter
           </button>
           {!confirmDelete ? (
-            <button onClick={() => setConfirmDelete(true)} className="text-xs text-gray-400 hover:underline hidden sm:inline">
+            <button onClick={() => setConfirmDelete(true)} className="text-xs hidden sm:inline transition-colors" style={{ color: 'var(--text-muted)' }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+            >
               Supprimer mon compte
             </button>
           ) : (
             <div className="flex flex-col items-end gap-1">
               <div className="flex items-center gap-2">
-                <span className="text-xs text-red-600 font-medium">Supprimer définitivement ?</span>
-                <button onClick={handleDeleteAccount} className="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700">
+                <span className="text-xs text-red-400 font-medium">Supprimer définitivement ?</span>
+                <button onClick={handleDeleteAccount} className="text-xs bg-red-500/80 text-white px-2 py-1 rounded hover:bg-red-500 transition-colors">
                   Confirmer
                 </button>
-                <button onClick={() => { setConfirmDelete(false); setAccountError('') }} className="text-xs border px-2 py-1 rounded hover:bg-gray-50">
+                <button onClick={() => { setConfirmDelete(false); setAccountError('') }} className="text-xs px-2 py-1 rounded transition-colors" style={{ border: '1px solid var(--glass-border)', color: 'var(--text-secondary)' }}>
                   Annuler
                 </button>
               </div>
-              {accountError && <p className="text-xs text-red-500">{accountError}</p>}
+              {accountError && <p className="text-xs text-red-400">{accountError}</p>}
             </div>
           )}
         </div>
       </header>
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        <aside className={`bg-white border-r border-gray-200 flex flex-col overflow-hidden w-full md:w-80 md:flex-shrink-0 ${selection ? 'hidden md:flex' : 'flex'}`}>
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-            <h1 className="text-sm font-semibold text-gray-800">Mes parcelles</h1>
-            <Link href="/map" className="px-3 py-2 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700">
+        <aside className={`flex flex-col overflow-hidden w-full md:w-80 md:flex-shrink-0 ${selection ? 'hidden md:flex' : 'flex'}`} style={{ background: 'rgba(255,255,255,0.40)', borderRight: '1px solid var(--glass-border)' }}>
+          <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--glass-border)' }}>
+            <h1 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Mes parcelles</h1>
+            <Link href="/map" className="btn-accent px-3 py-2 text-xs rounded-lg">
               + Ajouter
             </Link>
           </div>
 
           <div className="flex-1 overflow-y-auto p-3">
             {fetchError ? (
-              <p className="text-red-500 text-sm">{fetchError}</p>
+              <p className="text-red-400 text-sm">{fetchError}</p>
             ) : parcels.length === 0 ? (
-              <p className="text-gray-400 text-xs mt-4 text-center">
+              <p className="text-xs mt-4 text-center" style={{ color: 'var(--text-muted)' }}>
                 Aucune parcelle. Cliquez sur &ldquo;+ Ajouter&rdquo; pour dessiner votre première parcelle.
               </p>
             ) : (
@@ -520,32 +469,38 @@ export default function Home() {
                         parcel,
                         item: parcelDates?.[0] ?? null,
                       })}
-                      className={`rounded-lg border p-3 cursor-pointer transition-colors ${
-                        isActive
-                          ? 'bg-green-50 border-green-300'
-                          : 'bg-gray-50 border-gray-100 hover:bg-gray-100'
-                      }`}
+                      className="rounded-xl p-3 cursor-pointer transition-all duration-200"
+                      style={isActive ? {
+                        background: 'var(--accent-bg)',
+                        border: '1px solid var(--accent-border)',
+                        boxShadow: 'var(--accent-glow)',
+                      } : {
+                        background: 'var(--glass-bg)',
+                        border: '1px solid var(--glass-border)',
+                      }}
+                      onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'var(--glass-bg-hover)'; e.currentTarget.style.borderColor = 'var(--glass-border-hover)' } }}
+                      onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'var(--glass-bg)'; e.currentTarget.style.borderColor = 'var(--glass-border)' } }}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-gray-800 truncate">{parcel.name}</p>
-                          <p className="text-xs text-green-600">{parcelAreaHa(parcel.geometry)}</p>
+                          <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{parcel.name}</p>
+                          <p className="text-xs" style={{ color: 'var(--accent)' }}>{parcelAreaHa(parcel.geometry)}</p>
                         </div>
                         {todayWeather && (
                           <div className="flex items-center gap-1 shrink-0">
                             <WeatherIcon code={todayWeather.weatherCode} size={14} />
-                            <span className="text-[11px] text-gray-500">{todayWeather.tempMin}°/{todayWeather.tempMax}°</span>
+                            <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{todayWeather.tempMin}°/{todayWeather.tempMax}°</span>
                           </div>
                         )}
                       </div>
                       {parcelDates === undefined && (
-                        <p className="text-[10px] text-gray-300 mt-1">Chargement des images…</p>
+                        <p className="text-[10px] mt-1" style={{ color: 'var(--text-faint)' }}>Chargement des images…</p>
                       )}
                       {parcelDates?.length === 0 && (
-                        <p className="text-[10px] text-gray-300 mt-1">Aucune image disponible</p>
+                        <p className="text-[10px] mt-1" style={{ color: 'var(--text-faint)' }}>Aucune image disponible</p>
                       )}
                       {parcelDates?.length > 0 && (
-                        <p className="text-[10px] text-gray-400 mt-1">{parcelDates.length} image{parcelDates.length > 1 ? 's' : ''} disponible{parcelDates.length > 1 ? 's' : ''}</p>
+                        <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>{parcelDates.length} image{parcelDates.length > 1 ? 's' : ''} disponible{parcelDates.length > 1 ? 's' : ''}</p>
                       )}
                     </li>
                   )
@@ -557,124 +512,130 @@ export default function Home() {
 
         <main className={`flex-1 flex flex-col ${!selection ? 'hidden md:flex md:overflow-hidden' : 'overflow-y-auto md:overflow-hidden'}`}>
           {!selection ? (
-            <div className="h-full flex items-center justify-center text-gray-300 text-sm">
+            <div className="h-full flex items-center justify-center text-sm" style={{ color: 'var(--text-faint)' }}>
               Sélectionnez une parcelle pour afficher le tableau de bord
             </div>
           ) : (
             <>
               <button
                 onClick={() => setSelection(null)}
-                className="md:hidden flex items-center gap-1 px-4 py-3 text-sm text-gray-600 bg-white border-b border-gray-100 flex-shrink-0"
+                className="md:hidden flex items-center gap-1 px-4 py-3 text-sm flex-shrink-0 transition-colors"
+                style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--glass-border)' }}
               >
                 ← Mes parcelles
               </button>
 
-              {/* Header parcelle */}
-              <div className="px-4 md:px-6 pt-4 md:pt-6 pb-3 flex-shrink-0 flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-0">
-                <div>
-                  {renaming ? (
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <input
-                        type="text"
-                        value={renameValue}
-                        onChange={e => setRenameValue(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter' && renameValue.trim()) handleRename(selection.parcel.id, renameValue)
-                          if (e.key === 'Escape') setRenaming(false)
-                        }}
-                        autoFocus
-                        className="border rounded px-2 py-1 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500 w-48"
-                      />
-                      <button onClick={() => handleRename(selection.parcel.id, renameValue)} disabled={!renameValue.trim()} className="text-xs text-green-600 hover:underline disabled:opacity-40 disabled:cursor-not-allowed">Valider</button>
-                      <button onClick={() => setRenaming(false)} className="text-xs text-gray-400 hover:underline">Annuler</button>
+              {/* Layout deux colonnes : contenu principal + panneau droit */}
+              <div className="flex flex-col md:flex-row md:flex-1 md:min-h-0 md:overflow-hidden">
+                {/* Colonne gauche : header + sélecteurs + image */}
+                <div className="flex-1 flex flex-col md:min-w-0 md:overflow-y-auto">
+                  {/* Header parcelle */}
+                  <div className="px-4 md:px-6 pt-4 md:pt-6 pb-3 flex-shrink-0">
+                    <div>
+                      {renaming ? (
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <input
+                            type="text"
+                            value={renameValue}
+                            onChange={e => setRenameValue(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter' && renameValue.trim()) handleRename(selection.parcel.id, renameValue)
+                              if (e.key === 'Escape') setRenaming(false)
+                            }}
+                            autoFocus
+                            className="input-glass rounded-lg px-2 py-1 text-sm w-48"
+                          />
+                          <button onClick={() => handleRename(selection.parcel.id, renameValue)} disabled={!renameValue.trim()} className="text-xs hover:underline disabled:opacity-40 disabled:cursor-not-allowed" style={{ color: 'var(--accent)' }}>Valider</button>
+                          <button onClick={() => setRenaming(false)} className="text-xs hover:underline" style={{ color: 'var(--text-muted)' }}>Annuler</button>
+                        </div>
+                      ) : (
+                        <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>{selection.parcel.name}</h2>
+                      )}
+                      <p className="text-xs" style={{ color: 'var(--accent)' }}>{parcelAreaHa(selection.parcel.geometry)}</p>
+                      {!renaming && (
+                        <div className="flex gap-3 mt-1">
+                          <button
+                            onClick={() => { setRenaming(true); setRenameValue(selection.parcel.name) }}
+                            className="text-xs transition-colors"
+                            style={{ color: 'var(--text-muted)' }}
+                            onMouseEnter={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+                            onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+                          >
+                            Renommer
+                          </button>
+                          <button
+                            onClick={() => deleteParcel(selection.parcel.id)}
+                            className="text-xs text-red-400 hover:text-red-300 transition-colors"
+                          >
+                            Supprimer
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  ) : (
-                    <h2 className="text-base font-semibold text-gray-800">{selection.parcel.name}</h2>
-                  )}
-                  <p className="text-xs text-green-600">{parcelAreaHa(selection.parcel.geometry)}</p>
-                  {!renaming && (
-                    <div className="flex gap-3 mt-1">
-                      <button
-                        onClick={() => { setRenaming(true); setRenameValue(selection.parcel.name) }}
-                        className="text-xs text-gray-400 hover:text-gray-600 hover:underline"
-                      >
-                        Renommer
-                      </button>
-                      <button
-                        onClick={() => deleteParcel(selection.parcel.id)}
-                        className="text-xs text-red-400 hover:text-red-600 hover:underline"
-                      >
-                        Supprimer
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <div className="flex gap-1">
-                  {(['RGB', 'NDVI', 'NDWI', 'NDMI'] as const).map(idx => (
-                    <button
-                      key={idx}
-                      onClick={() => setSelectedIndex(idx)}
-                      className={`flex-1 md:flex-initial px-3 py-2 text-xs font-medium rounded border transition-colors ${
-                        selectedIndex === idx
-                          ? 'bg-green-600 border-green-600 text-white'
-                          : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                      }`}
-                    >
-                      {idx}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Widget dates Sentinel */}
-              <div className="px-4 md:px-6 pb-3 flex-shrink-0">
-                {dates[selection.parcel.id] === undefined ? (
-                  <p className="text-xs text-gray-300">Chargement des images…</p>
-                ) : dates[selection.parcel.id].length === 0 ? (
-                  <p className="text-xs text-gray-300">Aucune image disponible</p>
-                ) : (
-                  <div className="flex gap-2 overflow-x-auto pb-1">
-                    {dates[selection.parcel.id].map(item => {
-                      const active = selection.item?.date === item.date
-                      return (
-                        <button
-                          key={item.date}
-                          onClick={() => setSelection(prev => prev ? { ...prev, item } : null)}
-                          className={`inline-flex items-center gap-1 px-3 py-2 rounded text-xs font-medium border shrink-0 transition-colors ${
-                            active
-                              ? 'bg-green-600 border-green-600 text-white'
-                              : 'bg-white border-green-200 text-green-800 hover:bg-green-50'
-                          }`}
-                        >
-                          {formatDate(item.date)}
-                          {item.cloudCover !== null && (
-                            <span className={`inline-flex items-center gap-0.5 ${active ? 'opacity-80' : 'opacity-50'}`}>
-                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3">
-                                <path d="M4.5 10.196A6 6 0 0 1 12 4a6 6 0 0 1 5.985 5.57A4.5 4.5 0 0 1 17.5 19H6a4.5 4.5 0 0 1-1.5-8.804Z" />
-                              </svg>
-                              {Math.round(item.cloudCover)}%
-                            </span>
-                          )}
-                        </button>
-                      )
-                    })}
                   </div>
-                )}
-              </div>
 
-              <div className="flex flex-col md:flex-row gap-4 md:gap-6 px-4 md:px-6 pb-6 md:flex-1 md:min-h-0 md:overflow-hidden">
-                <div className="w-full md:flex-1 md:min-h-0 md:min-w-0 md:h-full">
-                  {selection.item ? (
-                    <ParcelImageViewer item={selection.item} parcelGeometry={selection.parcel.geometry} index={selectedIndex} />
-                  ) : (
-                    <div className="h-full flex items-center justify-center text-gray-300 text-sm">Chargement des images…</div>
-                  )}
+                  {/* Widget dates Sentinel */}
+                  <div className="px-4 md:px-6 pb-3 flex-shrink-0">
+                    {dates[selection.parcel.id] === undefined ? (
+                      <p className="text-xs" style={{ color: 'var(--text-faint)' }}>Chargement des images…</p>
+                    ) : dates[selection.parcel.id].length === 0 ? (
+                      <p className="text-xs" style={{ color: 'var(--text-faint)' }}>Aucune image disponible</p>
+                    ) : (
+                      <div className="flex gap-2 overflow-x-auto pb-1">
+                        {dates[selection.parcel.id].map(item => {
+                          const active = selection.item?.date === item.date
+                          return (
+                            <button
+                              key={item.date}
+                              onClick={() => setSelection(prev => prev ? { ...prev, item } : null)}
+                              className={`inline-flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium shrink-0 transition-all duration-200 ${active ? 'pill-active' : 'pill-glass'}`}
+                            >
+                              {formatDate(item.date)}
+                              {item.cloudCover !== null && (
+                                <span className={`inline-flex items-center gap-0.5 ${active ? 'opacity-80' : 'opacity-50'}`}>
+                                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3">
+                                    <path d="M4.5 10.196A6 6 0 0 1 12 4a6 6 0 0 1 5.985 5.57A4.5 4.5 0 0 1 17.5 19H6a4.5 4.5 0 0 1-1.5-8.804Z" />
+                                  </svg>
+                                  {Math.round(item.cloudCover)}%
+                                </span>
+                              )}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Sélecteur d'indice */}
+                  <div className="px-4 md:px-6 pb-3 flex-shrink-0">
+                    <div className="flex gap-1">
+                      {(['RGB', 'NDVI', 'NDWI', 'NDMI'] as const).map(idx => (
+                        <button
+                          key={idx}
+                          onClick={() => setSelectedIndex(idx)}
+                          className={`flex-1 md:flex-initial px-3 py-2 text-xs font-medium rounded-lg transition-all duration-200 ${selectedIndex === idx ? 'pill-active' : 'pill-glass'}`}
+                        >
+                          {idx}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Image parcelle */}
+                  <div className="px-4 md:px-6 pb-6 md:flex-1 md:min-h-0">
+                    {selection.item ? (
+                      <ParcelImageViewer item={selection.item} parcelGeometry={selection.parcel.geometry} index={selectedIndex} />
+                    ) : (
+                      <div className="h-full flex items-center justify-center text-sm" style={{ color: 'var(--text-faint)' }}>Chargement des images…</div>
+                    )}
+                  </div>
                 </div>
 
-                <div className="md:w-56 md:flex-shrink-0 flex flex-col gap-3 md:overflow-y-auto">
+                {/* Colonne droite : panneau pleine hauteur */}
+                <div className="md:w-80 md:flex-shrink-0 flex flex-col gap-3 md:overflow-y-auto px-4 md:px-0 md:pr-6 pb-6 md:pt-6">
                   {selection.item && (
-                  <div className="bg-white rounded-xl border border-gray-100 p-4">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Métadonnées</p>
+                  <div className="glass rounded-2xl p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--text-muted)' }}>Métadonnées</p>
                     {selection.item.platform && (
                       <MetaRow label="Satellite" value={selection.item.platform.replace('sentinel-', 'Sentinel-').toUpperCase()} />
                     )}
@@ -691,7 +652,7 @@ export default function Home() {
                   )}
                   {currentWeather === 'loading' && (
                     <WeatherCard>
-                      <p className="text-xs text-gray-400">Chargement…</p>
+                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Chargement…</p>
                     </WeatherCard>
                   )}
                   {currentWeather === 'error' && (
@@ -703,20 +664,20 @@ export default function Home() {
                     <WeatherPanel data={currentWeather} />
                   )}
 
-                  <div className="bg-white rounded-xl border border-gray-100 p-4">
+                  <div className="glass rounded-2xl p-4">
                     <div className="flex items-center justify-between mb-3">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Interventions</p>
+                      <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Interventions</p>
                       <button
                         onClick={() => setShowInterventionModal(true)}
-                        className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700"
+                        className="btn-accent text-xs px-2 py-1 rounded-lg"
                       >
                         + Nouvelle
                       </button>
                     </div>
                     {interventions[selection.parcel.id] === undefined ? (
-                      <p className="text-xs text-gray-300 text-center">Chargement…</p>
+                      <p className="text-xs text-center" style={{ color: 'var(--text-faint)' }}>Chargement…</p>
                     ) : interventions[selection.parcel.id].length === 0 ? (
-                      <p className="text-xs text-gray-300 text-center">Aucune intervention</p>
+                      <p className="text-xs text-center" style={{ color: 'var(--text-faint)' }}>Aucune intervention</p>
                     ) : (
                       <ul className="flex flex-col gap-3">
                         {interventions[selection.parcel.id].map(intv => (
@@ -726,71 +687,6 @@ export default function Home() {
                     )}
                   </div>
 
-                  <div className="bg-white rounded-xl border border-gray-100 p-4">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Notes de terrain</p>
-                    <div className="flex flex-col gap-2 mb-3">
-                      <textarea
-                        value={newNoteContent}
-                        onChange={e => setNewNoteContent(e.target.value)}
-                        placeholder="Ajouter une observation…"
-                        rows={2}
-                        className="border rounded px-2 py-1.5 text-xs text-gray-800 resize-none focus:outline-none focus:ring-2 focus:ring-green-500"
-                      />
-                      <button
-                        onClick={addNote}
-                        disabled={!newNoteContent.trim() || savingNote}
-                        className="self-end text-xs bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed"
-                      >
-                        {savingNote ? '…' : 'Ajouter'}
-                      </button>
-                    </div>
-                    {notes[selection.parcel.id] === undefined ? (
-                      <p className="text-xs text-gray-300 text-center">Chargement…</p>
-                    ) : notes[selection.parcel.id].length === 0 ? (
-                      <p className="text-xs text-gray-300 text-center">Aucune note</p>
-                    ) : (
-                      <ul className="flex flex-col gap-3">
-                        {notes[selection.parcel.id].map(note => (
-                          <li key={note.id} className="border-l-2 border-green-200 pl-2">
-                            <p className="text-[10px] text-gray-400 mb-0.5">{formatNoteDate(note.date)}</p>
-                            {editingNoteId === note.id ? (
-                              <div className="flex flex-col gap-1">
-                                <textarea
-                                  value={editValue}
-                                  onChange={e => setEditValue(e.target.value)}
-                                  rows={2}
-                                  autoFocus
-                                  className="border rounded px-2 py-1 text-xs text-gray-800 resize-none focus:outline-none focus:ring-2 focus:ring-green-500"
-                                />
-                                <div className="flex gap-2">
-                                  <button
-                                    onClick={() => saveNoteEdit(note.id)}
-                                    disabled={!editValue.trim()}
-                                    className="text-xs text-green-600 hover:underline disabled:opacity-40 disabled:cursor-not-allowed"
-                                  >Valider</button>
-                                  <button onClick={() => setEditingNoteId(null)} className="text-xs text-gray-400 hover:underline">Annuler</button>
-                                </div>
-                              </div>
-                            ) : (
-                              <>
-                                <p className="text-xs text-gray-700 whitespace-pre-wrap">{note.content}</p>
-                                <div className="flex gap-2 mt-0.5">
-                                  <button
-                                    onClick={() => { setEditingNoteId(note.id); setEditValue(note.content) }}
-                                    className="text-[10px] text-gray-400 hover:underline"
-                                  >Modifier</button>
-                                  <button
-                                    onClick={() => deleteNote(note.id)}
-                                    className="text-[10px] text-red-400 hover:underline"
-                                  >Supprimer</button>
-                                </div>
-                              </>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
                 </div>
               </div>
             </>
@@ -818,10 +714,10 @@ export default function Home() {
         />
       )}
 
-      <footer className="flex-shrink-0 border-t border-gray-100 bg-white px-6 py-2 flex gap-4 justify-center">
-        <Link href="/mentions-legales" className="text-xs text-gray-400 hover:underline">Mentions légales</Link>
-        <Link href="/confidentialite" className="text-xs text-gray-400 hover:underline">Confidentialité</Link>
-        <Link href="/cgu" className="text-xs text-gray-400 hover:underline">CGU</Link>
+      <footer className="flex-shrink-0 px-6 py-2 flex gap-4 justify-center" style={{ borderTop: '1px solid var(--glass-border)' }}>
+        <Link href="/mentions-legales" className="text-xs transition-colors" style={{ color: 'var(--text-muted)' }}>Mentions légales</Link>
+        <Link href="/confidentialite" className="text-xs transition-colors" style={{ color: 'var(--text-muted)' }}>Confidentialité</Link>
+        <Link href="/cgu" className="text-xs transition-colors" style={{ color: 'var(--text-muted)' }}>CGU</Link>
       </footer>
     </div>
   )

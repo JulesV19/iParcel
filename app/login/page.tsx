@@ -36,44 +36,100 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-sm">
-        <h1 className="text-2xl font-bold mb-6 text-center text-green-700">iParcel</h1>
+    <div className="min-h-screen flex items-center justify-center px-4">
+      {/* Ambient glow blobs */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 overflow-hidden"
+      >
+        <div
+          style={{
+            position: 'absolute', top: '15%', left: '25%',
+            width: 500, height: 500,
+            background: 'radial-gradient(circle, rgba(22,163,74,0.08) 0%, transparent 70%)',
+            filter: 'blur(40px)',
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute', bottom: '20%', right: '20%',
+            width: 400, height: 400,
+            background: 'radial-gradient(circle, rgba(59,130,246,0.06) 0%, transparent 70%)',
+            filter: 'blur(40px)',
+          }}
+        />
+      </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <div
+        className="glass-strong rounded-2xl w-full max-w-sm p-8 relative"
+        style={{ borderRadius: 20 }}
+      >
+        {/* Logo */}
+        <div className="flex flex-col items-center mb-8">
+          <h1
+            className="text-3xl font-bold tracking-tight mb-1"
+            style={{ color: 'var(--accent)' }}
+          >
+            iParcel
+          </h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+            Gestion de parcelles agricoles
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <input
+            id="login-email"
             type="email"
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="input-glass rounded-xl px-4 py-3 text-sm w-full"
           />
           <input
+            id="login-password"
             type="password"
             placeholder="Mot de passe"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className="border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="input-glass rounded-xl px-4 py-3 text-sm w-full"
           />
 
-          {error && <p className="text-sm text-red-500">{error}</p>}
+          {error && (
+            <p
+              className="text-sm rounded-xl px-3 py-2"
+              style={{
+                color: error.startsWith('Compte créé')
+                  ? 'var(--accent)'
+                  : '#f87171',
+                background: error.startsWith('Compte créé')
+                  ? 'rgba(0,230,118,0.08)'
+                  : 'rgba(248,113,113,0.08)',
+                border: `1px solid ${error.startsWith('Compte créé') ? 'rgba(0,230,118,0.2)' : 'rgba(248,113,113,0.2)'}`,
+              }}
+            >
+              {error}
+            </p>
+          )}
 
           <button
+            id="login-submit"
             type="submit"
             disabled={loading}
-            className="bg-green-600 text-white rounded-lg py-2 font-semibold hover:bg-green-700 disabled:opacity-50"
+            className="btn-accent rounded-xl py-3 text-sm font-semibold mt-1 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? '...' : mode === 'login' ? 'Se connecter' : 'Créer un compte'}
+            {loading ? '…' : mode === 'login' ? 'Se connecter' : 'Créer un compte'}
           </button>
         </form>
 
-        <p className="text-sm text-center mt-4 text-gray-500">
+        <p className="text-sm text-center mt-5" style={{ color: 'var(--text-muted)' }}>
           {mode === 'login' ? 'Pas encore de compte ?' : 'Déjà un compte ?'}{' '}
           <button
             onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError('') }}
-            className="text-green-600 underline"
+            className="font-medium transition-colors hover:opacity-80"
+            style={{ color: 'var(--accent)' }}
           >
             {mode === 'login' ? 'Créer un compte' : 'Se connecter'}
           </button>

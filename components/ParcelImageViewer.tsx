@@ -172,7 +172,7 @@ function Legend({ index, width }: { index: IndexType; width: number }) {
   const meta = INDEX_META[index]
   if (!meta.stops || !meta.ticks) {
     return (
-      <p className="text-xs text-gray-400 text-center leading-relaxed">{meta.description}</p>
+      <p className="text-xs text-center leading-relaxed" style={{ color: 'var(--text-muted)' }}>{meta.description}</p>
     )
   }
   const gradient = meta.stops
@@ -180,11 +180,11 @@ function Legend({ index, width }: { index: IndexType; width: number }) {
     .join(', ')
   return (
     <div className="flex flex-col gap-1" style={{ width }}>
-      <p className="text-xs text-gray-500 text-center leading-relaxed">{meta.description}</p>
+      <p className="text-xs text-center leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{meta.description}</p>
       <div className="h-4 rounded" style={{ background: `linear-gradient(to right, ${gradient})` }} />
       <div className="flex justify-between">
         {meta.ticks.map(t => (
-          <span key={t.v} className="text-xs text-gray-400 whitespace-pre-line text-center leading-tight">{t.label}</span>
+          <span key={t.v} className="text-xs whitespace-pre-line text-center leading-tight" style={{ color: 'var(--text-muted)' }}>{t.label}</span>
         ))}
       </div>
     </div>
@@ -389,22 +389,27 @@ export default function ParcelImageViewer({ item, parcelGeometry, index }: Props
   return (
     <div ref={wrapperRef} className="w-full md:h-full flex flex-col items-center gap-3">
       <div
-        className="bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0"
-        style={{ width: squareSize, height: squareSize }}
+        className="rounded-xl overflow-hidden flex items-center justify-center flex-shrink-0"
+        style={{
+          width: squareSize, height: squareSize,
+          background: 'rgba(0,0,0,0.03)',
+          border: '1px solid var(--glass-border)',
+          boxShadow: '0 4px 24px rgba(0,0,0,0.06)',
+        }}
       >
         {status === 'loading' && squareSize > 0 && (
           <div className="flex flex-col items-center gap-2 w-3/4">
-            <div className="w-full bg-gray-200 rounded-full h-1.5">
+            <div className="w-full rounded-full h-1.5" style={{ background: 'rgba(0,0,0,0.06)' }}>
               <div
-                className="bg-green-500 h-1.5 rounded-full transition-all duration-300 ease-out"
-                style={{ width: `${progress.pct}%` }}
+                className="h-1.5 rounded-full transition-all duration-300 ease-out animate-pulse-glow"
+                style={{ width: `${progress.pct}%`, background: 'var(--accent)' }}
               />
             </div>
-            <span className="text-xs text-gray-400">{progress.label}</span>
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{progress.label}</span>
           </div>
         )}
         {status === 'error' && (
-          <span className="text-sm text-red-500 px-4 text-center">{errorMsg}</span>
+          <span className="text-sm px-4 text-center" style={{ color: '#f87171' }}>{errorMsg}</span>
         )}
         <canvas
           ref={canvasRef}
