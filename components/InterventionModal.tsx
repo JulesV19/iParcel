@@ -640,9 +640,9 @@ export default function InterventionModal({ parcelId, userId, currentWeather, on
             <>
               {/* Champs communs */}
               <div className="grid grid-cols-2 gap-3">
-                <div>
+                <div className="min-w-0">
                   <label className={lbl}>Date *</label>
-                  <input type="date" className={inp} value={form.date} onChange={e => set('date', e.target.value)} />
+                  <input type="date" className={`${inp} max-w-full`} value={form.date} onChange={e => set('date', e.target.value)} />
                 </div>
                 <div>
                   <label className={lbl}>Surface traitée (ha)</label>
