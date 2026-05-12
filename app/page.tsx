@@ -318,29 +318,34 @@ export default function Home() {
 
 
   useEffect(() => {
-    if (searchQuery.length < 2) { setSearchResults([]); return }
+    if (searchQuery.length < 2) { setSearchResults([]); setSearchLoading(false); return }
     setSearchLoading(true)
+    let cancelled = false
     const timer = setTimeout(async () => {
-      const q = `%${searchQuery}%`
-      const [phytoRes, mfscRes] = await Promise.all([
-        supabase.from('produits_phyto').select('amm, nom_commercial, titulaire, type_produit, statut, date_amm, date_retrait').ilike('nom_commercial', q).limit(20),
-        supabase.from('produits_mfsc').select('amm, nom_produit, type_produit, composition').ilike('nom_produit', q).limit(20),
-      ])
-      const phyto: SearchResultItem[] = (phytoRes.data ?? []).map(p => ({
-        kind: 'phyto' as const,
-        amm: p.amm, nom: p.nom_commercial, titulaire: p.titulaire,
-        type_produit: p.type_produit, statut: p.statut,
-        date_amm: p.date_amm ?? null, date_retrait: p.date_retrait ?? null,
-      }))
-      const mfsc: SearchResultItem[] = (mfscRes.data ?? []).map(p => ({
-        kind: 'mfsc' as const,
-        amm: p.amm, nom: p.nom_produit,
-        type_produit: p.type_produit, composition: p.composition,
-      }))
-      setSearchResults([...phyto, ...mfsc])
-      setSearchLoading(false)
+      try {
+        const q = `%${searchQuery}%`
+        const [phytoRes, mfscRes] = await Promise.all([
+          supabase.from('produits_phyto').select('amm, nom_commercial, titulaire, type_produit, statut, date_amm, date_retrait').ilike('nom_commercial', q).limit(20),
+          supabase.from('produits_mfsc').select('amm, nom_produit, type_produit, composition').ilike('nom_produit', q).limit(20),
+        ])
+        if (cancelled) return
+        const phyto: SearchResultItem[] = (phytoRes.data ?? []).map(p => ({
+          kind: 'phyto' as const,
+          amm: p.amm, nom: p.nom_commercial, titulaire: p.titulaire,
+          type_produit: p.type_produit, statut: p.statut,
+          date_amm: p.date_amm ?? null, date_retrait: p.date_retrait ?? null,
+        }))
+        const mfsc: SearchResultItem[] = (mfscRes.data ?? []).map(p => ({
+          kind: 'mfsc' as const,
+          amm: p.amm, nom: p.nom_produit,
+          type_produit: p.type_produit, composition: p.composition,
+        }))
+        setSearchResults([...phyto, ...mfsc])
+      } finally {
+        if (!cancelled) setSearchLoading(false)
+      }
     }, 300)
-    return () => clearTimeout(timer)
+    return () => { cancelled = true; clearTimeout(timer) }
   }, [searchQuery])
 
   useEffect(() => {

@@ -129,6 +129,7 @@ export default function ProductDetailView({ product }: Props) {
 
   useEffect(() => {
     if (!product) return
+    let cancelled = false
     setUsagesPhyto([])
     setUsagesMfsc([])
     setSelectedCulture(null)
@@ -139,8 +140,9 @@ export default function ProductDetailView({ product }: Props) {
         .from('usages_phyto')
         .select('*')
         .eq('amm', product.amm)
-        .then(({ data }) => {
-          setUsagesPhyto((data ?? []) as UsagePhyto[])
+        .then(({ data, error }) => {
+          if (cancelled) return
+          if (!error) setUsagesPhyto((data ?? []) as UsagePhyto[])
           setLoadingUsages(false)
         })
     } else {
@@ -148,11 +150,14 @@ export default function ProductDetailView({ product }: Props) {
         .from('usages_mfsc')
         .select('*')
         .eq('amm', product.amm)
-        .then(({ data }) => {
-          setUsagesMfsc((data ?? []) as UsageMfsc[])
+        .then(({ data, error }) => {
+          if (cancelled) return
+          if (!error) setUsagesMfsc((data ?? []) as UsageMfsc[])
           setLoadingUsages(false)
         })
     }
+
+    return () => { cancelled = true }
   }, [product?.amm, product?.kind])
 
   if (!product) {
@@ -244,8 +249,8 @@ export default function ProductDetailView({ product }: Props) {
             {selectedCulture && (
               <div className="flex flex-col gap-2">
                 {product.kind === 'phyto'
-                  ? filteredPhyto.map((u, i) => <PhytoUsageCard key={i} u={u} />)
-                  : filteredMfsc.map((u, i) => <MfscUsageCard key={i} u={u} />)
+                  ? filteredPhyto.map(u => <PhytoUsageCard key={u.id} u={u} />)
+                  : filteredMfsc.map(u => <MfscUsageCard key={u.id} u={u} />)
                 }
               </div>
             )}
