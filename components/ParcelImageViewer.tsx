@@ -146,27 +146,7 @@ function calcWindow(
   return { x0, y0, x1, y1, w: x1 - x0, h: y1 - y0, scaleX, scaleY }
 }
 
-function drawOutline(
-  ctx: CanvasRenderingContext2D,
-  parcelCRS: [number, number][],
-  nativeBbox: number[],
-  scaleX: number,
-  scaleY: number,
-  x0: number,
-  y0: number
-) {
-  ctx.beginPath()
-  parcelCRS.forEach((coord, i) => {
-    const px = (coord[0] - nativeBbox[0]) * scaleX - x0
-    const py = (nativeBbox[3] - coord[1]) * scaleY - y0
-    if (i === 0) ctx.moveTo(px, py)
-    else ctx.lineTo(px, py)
-  })
-  ctx.closePath()
-  ctx.strokeStyle = 'rgba(255, 220, 0, 0.95)'
-  ctx.lineWidth = 2
-  ctx.stroke()
-}
+
 
 function Legend({ index, width }: { index: IndexType; width: number }) {
   const meta = INDEX_META[index]
@@ -198,6 +178,11 @@ export default function ParcelImageViewer({ item, parcelGeometry, index }: Props
   const [errorMsg, setErrorMsg] = useState('')
   const [squareSize, setSquareSize] = useState(0)
   const [progress, setProgress] = useState<{ pct: number; label: string }>({ pct: 0, label: '' })
+  const [drawInfo, setDrawInfo] = useState<{
+    parcelCRS: [number, number][]
+    nativeBbox: number[]
+    win: PixelWindow
+  } | null>(null)
 
   useEffect(() => {
     if (!wrapperRef.current) return
@@ -239,6 +224,7 @@ export default function ParcelImageViewer({ item, parcelGeometry, index }: Props
 
     setStatus('loading')
     setErrorMsg('')
+    setDrawInfo(null)
     setProgress({ pct: 0, label: 'Préparation…' })
     let cancelled = false
 
@@ -297,7 +283,7 @@ export default function ParcelImageViewer({ item, parcelGeometry, index }: Props
           }
 
           ctx.putImageData(imgData, 0, 0)
-          drawOutline(ctx, parcelCRS, nativeBbox, win.scaleX, win.scaleY, win.x0, win.y0)
+          setDrawInfo({ parcelCRS, nativeBbox, win })
 
         } else {
           const secLabel = index === 'NDVI' ? 'rouge' : index === 'NDWI' ? 'verte' : 'SWIR'
@@ -369,7 +355,7 @@ export default function ParcelImageViewer({ item, parcelGeometry, index }: Props
 
           report(95, 'Rendu…')
           ctx.putImageData(imgData, 0, 0)
-          drawOutline(ctx, parcelCRS, nirBbox, win.scaleX, win.scaleY, win.x0, win.y0)
+          setDrawInfo({ parcelCRS, nativeBbox: nirBbox, win })
         }
 
         setStatus('done')
@@ -389,7 +375,7 @@ export default function ParcelImageViewer({ item, parcelGeometry, index }: Props
   return (
     <div ref={wrapperRef} className="w-full md:h-full flex flex-col items-center gap-3">
       <div
-        className="rounded-xl overflow-hidden flex items-center justify-center flex-shrink-0"
+        className="rounded-xl overflow-hidden flex items-center justify-center flex-shrink-0 relative"
         style={{
           width: squareSize, height: squareSize,
           background: 'rgba(0,0,0,0.03)',
@@ -398,23 +384,44 @@ export default function ParcelImageViewer({ item, parcelGeometry, index }: Props
         }}
       >
         {status === 'loading' && squareSize > 0 && (
-          <div className="flex flex-col items-center gap-2 w-3/4">
+          <div className="flex flex-col items-center gap-2 w-3/4 z-10">
             <div className="w-full rounded-full h-1.5" style={{ background: 'rgba(0,0,0,0.06)' }}>
               <div
                 className="h-1.5 rounded-full transition-all duration-300 ease-out animate-pulse-glow"
                 style={{ width: `${progress.pct}%`, background: 'var(--accent)' }}
               />
             </div>
-            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{progress.label}</span>
+            <span className="text-xs z-10" style={{ color: 'var(--text-muted)' }}>{progress.label}</span>
           </div>
         )}
         {status === 'error' && (
-          <span className="text-sm px-4 text-center" style={{ color: '#f87171' }}>{errorMsg}</span>
+          <span className="text-sm px-4 text-center z-10" style={{ color: '#f87171' }}>{errorMsg}</span>
         )}
         <canvas
           ref={canvasRef}
+          className="absolute inset-0"
           style={{ display: status === 'done' ? 'block' : 'none', width: '100%', height: '100%' }}
         />
+        {status === 'done' && drawInfo && (
+          <svg
+            viewBox={`0 0 ${drawInfo.win.w} ${drawInfo.win.h}`}
+            className="absolute inset-0 w-full h-full pointer-events-none"
+            preserveAspectRatio="none"
+          >
+            <polygon
+              points={drawInfo.parcelCRS.map(coord => {
+                const px = (coord[0] - drawInfo.nativeBbox[0]) * drawInfo.win.scaleX - drawInfo.win.x0
+                const py = (drawInfo.nativeBbox[3] - coord[1]) * drawInfo.win.scaleY - drawInfo.win.y0
+                return `${px},${py}`
+              }).join(' ')}
+              fill="none"
+              stroke="rgba(255, 220, 0, 0.95)"
+              strokeWidth="2.5"
+              vectorEffect="non-scaling-stroke"
+              strokeLinejoin="round"
+            />
+          </svg>
+        )}
       </div>
       {squareSize > 0 && <Legend index={index} width={squareSize} />}
     </div>

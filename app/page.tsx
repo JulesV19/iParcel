@@ -575,20 +575,21 @@ export default function Home() {
                   </div>
 
                   {/* Widget dates Sentinel */}
-                  <div className="px-4 md:px-6 pb-3 flex-shrink-0">
+                  <div className="pb-3 flex-shrink-0 w-full">
                     {dates[selection.parcel.id] === undefined ? (
-                      <p className="text-xs" style={{ color: 'var(--text-faint)' }}>Chargement des images…</p>
+                      <p className="text-xs px-4 md:px-6" style={{ color: 'var(--text-faint)' }}>Chargement des images…</p>
                     ) : dates[selection.parcel.id].length === 0 ? (
-                      <p className="text-xs" style={{ color: 'var(--text-faint)' }}>Aucune image disponible</p>
+                      <p className="text-xs px-4 md:px-6" style={{ color: 'var(--text-faint)' }}>Aucune image disponible</p>
                     ) : (
-                      <div className="flex gap-2 overflow-x-auto pb-1">
+                      <div className="flex gap-2 overflow-x-auto -my-4 hide-scrollbar">
+                        <div className="w-2 md:w-4 shrink-0" />
                         {dates[selection.parcel.id].map(item => {
                           const active = selection.item?.date === item.date
                           return (
                             <button
                               key={item.date}
                               onClick={() => setSelection(prev => prev ? { ...prev, item } : null)}
-                              className={`inline-flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium shrink-0 transition-all duration-200 ${active ? 'pill-active' : 'pill-glass'}`}
+                              className={`inline-flex items-center gap-1 px-3 py-2 my-4 rounded-lg text-xs font-medium shrink-0 transition-all duration-200 ${active ? 'pill-active' : 'pill-glass'}`}
                             >
                               {formatDate(item.date)}
                               {item.cloudCover !== null && (
@@ -602,6 +603,7 @@ export default function Home() {
                             </button>
                           )
                         })}
+                        <div className="w-2 md:w-4 shrink-0" />
                       </div>
                     )}
                   </div>
