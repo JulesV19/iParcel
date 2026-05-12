@@ -49,7 +49,7 @@ export default function MapComponent({ userId, onSaved }: { userId: string; onSa
 
     const drawControl = new L.Control.Draw({
       draw: {
-        polygon: { shapeOptions: { color: '#16a34a' } },
+        polygon: { shapeOptions: { color: '#374151' } },
         polyline: false,
         rectangle: false,
         circle: false,
@@ -79,7 +79,7 @@ export default function MapComponent({ userId, onSaved }: { userId: string; onSa
       if (addedIds.current.has(parcel.id)) return
       addedIds.current.add(parcel.id)
       L.geoJSON(parcel.geometry as GeoJSON.GeoJsonObject, {
-        style: { color: '#16a34a', weight: 2, fillOpacity: 0.2 },
+        style: { color: '#374151', weight: 2, fillOpacity: 0.2 },
       })
         .bindPopup(`<strong>${escapeHtml(parcel.name)}</strong>`)
         .addTo(existingLayersRef.current)
@@ -105,7 +105,7 @@ export default function MapComponent({ userId, onSaved }: { userId: string; onSa
     }
 
     if (data) {
-      ;(pendingLayer as L.Polygon).setStyle({ color: '#16a34a', weight: 2, fillOpacity: 0.2 })
+      ;(pendingLayer as L.Polygon).setStyle({ color: '#374151', weight: 2, fillOpacity: 0.2 })
       ;(pendingLayer as L.Polygon).bindPopup(`<strong>${escapeHtml(data.name)}</strong>`)
       addedIds.current.add(data.id)
       setParcels(prev => [...prev, data as Parcel])
@@ -140,7 +140,7 @@ export default function MapComponent({ userId, onSaved }: { userId: string; onSa
               onChange={(e) => setParcelName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && saveParcel()}
               autoFocus
-              className="border rounded-lg px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="border rounded-lg px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-300"
             />
             {saveError && <p className="text-sm text-red-500">{saveError}</p>}
             <div className="flex gap-2 justify-end">
@@ -150,7 +150,7 @@ export default function MapComponent({ userId, onSaved }: { userId: string; onSa
               <button
                 onClick={saveParcel}
                 disabled={!parcelName.trim() || saving}
-                className="px-4 py-3 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                className="px-4 py-3 text-sm bg-gray-800 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50"
               >
                 {saving ? '...' : 'Enregistrer'}
               </button>

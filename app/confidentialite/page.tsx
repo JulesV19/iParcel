@@ -6,14 +6,14 @@ export default function Confidentialite() {
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
       <div className="max-w-2xl mx-auto bg-white rounded-xl border border-gray-100 p-8">
-        <Link href="/" className="text-xs text-green-700 hover:underline mb-6 inline-block">← Retour</Link>
+        <Link href="/" className="text-xs text-gray-600 hover:underline mb-6 inline-block">← Retour</Link>
         <h1 className="text-xl font-bold text-gray-900 mb-2">Politique de confidentialité</h1>
         <p className="text-xs text-gray-400 mb-8">Dernière mise à jour : 9 mai 2026</p>
 
         <section className="mb-6">
           <h2 className="text-sm font-semibold text-gray-700 mb-2">Responsable du traitement</h2>
           <p className="text-sm text-gray-600">
-            Jules Videgrain — <a href="mailto:jv9994@icloud.com" className="text-green-700 hover:underline">jv9994@icloud.com</a>
+            Jules Videgrain — <a href="mailto:jv9994@icloud.com" className="text-gray-600 hover:underline">jv9994@icloud.com</a>
           </p>
         </section>
 
@@ -58,11 +58,11 @@ export default function Confidentialite() {
             <div>
               <strong>Supabase, Inc.</strong> (États-Unis, AWS us-east-1) — stockage des comptes
               et des parcelles. Transfert encadré par les clauses contractuelles types de la Commission
-              européenne. <a href="https://supabase.com/privacy" className="text-green-700 hover:underline" target="_blank" rel="noopener noreferrer">Politique Supabase</a>
+              européenne. <a href="https://supabase.com/privacy" className="text-gray-600 hover:underline" target="_blank" rel="noopener noreferrer">Politique Supabase</a>
             </div>
             <div>
               <strong>Vercel, Inc.</strong> (États-Unis) — hébergement de l'application.{' '}
-              <a href="https://vercel.com/legal/privacy-policy" className="text-green-700 hover:underline" target="_blank" rel="noopener noreferrer">Politique Vercel</a>
+              <a href="https://vercel.com/legal/privacy-policy" className="text-gray-600 hover:underline" target="_blank" rel="noopener noreferrer">Politique Vercel</a>
             </div>
             <div>
               <strong>Element 84 / AWS</strong> — fourniture des images satellitaires publiques
@@ -72,7 +72,7 @@ export default function Confidentialite() {
               <strong>Open-Meteo</strong> (Allemagne) — fourniture des données météorologiques.
               Seul le centroïde géographique de la parcelle (latitude/longitude) est transmis,
               sans identifiant utilisateur.{' '}
-              <a href="https://open-meteo.com/en/terms" className="text-green-700 hover:underline" target="_blank" rel="noopener noreferrer">Conditions Open-Meteo</a>
+              <a href="https://open-meteo.com/en/terms" className="text-gray-600 hover:underline" target="_blank" rel="noopener noreferrer">Conditions Open-Meteo</a>
             </div>
           </div>
         </section>
@@ -100,11 +100,11 @@ export default function Confidentialite() {
           </ul>
           <p className="text-sm text-gray-600 mt-2">
             Pour exercer ces droits (hors suppression déjà disponible dans l'interface) :
-            <a href="mailto:jv9994@icloud.com" className="text-green-700 hover:underline ml-1">jv9994@icloud.com</a>
+            <a href="mailto:jv9994@icloud.com" className="text-gray-600 hover:underline ml-1">jv9994@icloud.com</a>
           </p>
           <p className="text-sm text-gray-600 mt-2">
             Vous pouvez également introduire une réclamation auprès de la CNIL :
-            <a href="https://www.cnil.fr" className="text-green-700 hover:underline ml-1" target="_blank" rel="noopener noreferrer">cnil.fr</a>
+            <a href="https://www.cnil.fr" className="text-gray-600 hover:underline ml-1" target="_blank" rel="noopener noreferrer">cnil.fr</a>
           </p>
         </section>
 

@@ -278,7 +278,7 @@ function CompatBlock({ data, culture, cible, doseValue, doseUnit }: {
   const hasIssues = cibleIssue || doseIssue
 
   if (!hasIssues) return (
-    <div className="px-3 py-2 rounded-lg bg-green-50 text-green-700 text-xs">
+    <div className="px-3 py-2 rounded-lg bg-gray-50 text-gray-600 text-xs">
       ✓ Conforme e-phy ANSES — produit autorisé sur {culture}
     </div>
   )
@@ -342,7 +342,7 @@ function FertiCompatBlock({ data, culture, doseValue, doseUnit }: {
   }
 
   if (!minIssue && !maxIssue) return (
-    <div className="px-3 py-2 rounded-lg bg-green-50 text-green-700 text-xs">
+    <div className="px-3 py-2 rounded-lg bg-gray-50 text-gray-600 text-xs">
       ✓ Conforme e-phy ANSES — produit autorisé sur {culture || 'cette culture'}
     </div>
   )
@@ -597,7 +597,7 @@ export default function InterventionModal({ parcelId, userId, currentWeather, on
     onClose()
   }
 
-  const inp = 'w-full border border-gray-200 rounded px-2.5 py-1.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500'
+  const inp = 'w-full border border-gray-200 rounded px-2.5 py-1.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-300'
   const inpWarn = 'w-full border border-orange-400 rounded px-2.5 py-1.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400'
   const lbl = 'block text-xs text-gray-500 mb-1'
   const cat = form.category
@@ -625,7 +625,7 @@ export default function InterventionModal({ parcelId, userId, currentWeather, on
                   onClick={() => set('category', key)}
                   className={`flex flex-col items-center gap-1 p-2 rounded-lg border text-center transition-colors ${
                     cat === key
-                      ? 'bg-green-600 border-green-600 text-white'
+                      ? 'bg-gray-800 border-gray-800 text-white'
                       : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
                   }`}
                 >
@@ -981,7 +981,7 @@ export default function InterventionModal({ parcelId, userId, currentWeather, on
                           type="checkbox"
                           checked={form.meteo_auto}
                           onChange={e => set('meteo_auto', e.target.checked)}
-                          className="accent-green-600"
+                          className="accent-gray-600"
                           disabled={!currentWeather || !dateInRange}
                         />
                         <span className="text-[10px] text-gray-500">{label}</span>
@@ -1038,7 +1038,7 @@ export default function InterventionModal({ parcelId, userId, currentWeather, on
           <button
             onClick={handleSave}
             disabled={!form.category || !form.date || saving}
-            className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-gray-800 text-white text-sm rounded-lg hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {saving ? 'Enregistrement…' : 'Enregistrer'}
           </button>

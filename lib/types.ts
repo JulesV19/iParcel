@@ -80,3 +80,56 @@ export interface Intervention {
   irrig_volume_mm: number | null
   irrig_duree_h: number | null
 }
+
+export interface UsagePhyto {
+  id: number
+  amm: string
+  culture_ephy: string
+  type_traitement: string | null
+  nuisible: string | null
+  etat_usage: string
+  dose_retenue: string | null
+  dose_unite: string | null
+  dar_jours: number | null
+  dar_bbch: string | null
+  nb_max_applications: number | null
+  date_fin_distribution: string | null
+  date_fin_utilisation: string | null
+  condition_emploi: string | null
+  znt_aquatique_m: number | null
+  znt_arthropodes_m: number | null
+  znt_plantes_m: number | null
+  mentions: string | null
+  intervalle_min_jours: number | null
+}
+
+export interface UsageMfsc {
+  id: number
+  amm: string
+  type_culture: string
+  dose_min: number | null
+  dose_min_unite: string | null
+  dose_max: number | null
+  dose_max_unite: string | null
+  etat_usage: string
+  culture_commentaire: string | null
+}
+
+export type SearchResultItem =
+  | {
+      kind: 'phyto'
+      amm: string
+      nom: string
+      titulaire: string | null
+      type_produit: string | null
+      statut: string | null
+      date_amm: string | null
+      date_retrait: string | null
+    }
+  | {
+      kind: 'mfsc'
+      amm: string
+      nom: string
+      type_produit: string | null
+      composition: string | null
+    }

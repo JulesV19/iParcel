@@ -6,14 +6,17 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { fetchSentinelDates, formatDate } from '@/lib/stac'
 import type { SentinelItem } from '@/lib/stac'
-import type { Parcel, Intervention, InterventionCategory } from '@/lib/types'
+import type { Parcel, Intervention, InterventionCategory, SearchResultItem } from '@/lib/types'
 import ParcelImageViewer, { type IndexType } from '@/components/ParcelImageViewer'
 import InterventionModal from '@/components/InterventionModal'
 import InterventionDetailModal from '@/components/InterventionDetailModal'
 import {
   Sun, Cloud, CloudSun, CloudRain, CloudSnow, CloudLightning, CloudDrizzle, CloudFog,
+  Map, Search,
   type LucideIcon,
 } from 'lucide-react'
+import SearchSidebar from '@/components/SearchSidebar'
+import ProductDetailView from '@/components/ProductDetailView'
 import {
   fetchWeather, parcelCentroid, weatherCodeLabel,
   type WeatherData,
@@ -168,7 +171,7 @@ const CATEGORY_LABELS: Record<InterventionCategory, string> = {
 
 const CATEGORY_BORDER: Record<InterventionCategory, string> = {
   travail_sol:      'border-amber-400',
-  semis:            'border-green-400',
+  semis:            'border-gray-300',
   fertilisation:    'border-blue-400',
   traitement_phyto: 'border-red-400',
   irrigation:       'border-cyan-400',
@@ -233,6 +236,11 @@ export default function Home() {
   const [viewingIntervention, setViewingIntervention] = useState<Intervention | null>(null)
   const [editingIntervention, setEditingIntervention] = useState<Intervention | null>(null)
   const fetchedInterventionIds = useRef(new Set<string>())
+  const [view, setView] = useState<'parcels' | 'search'>('parcels')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<SearchResultItem[]>([])
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState<SearchResultItem | null>(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -308,6 +316,32 @@ export default function Home() {
   }, [selection?.parcel.id])
 
 
+
+  useEffect(() => {
+    if (searchQuery.length < 2) { setSearchResults([]); return }
+    setSearchLoading(true)
+    const timer = setTimeout(async () => {
+      const q = `%${searchQuery}%`
+      const [phytoRes, mfscRes] = await Promise.all([
+        supabase.from('produits_phyto').select('amm, nom_commercial, titulaire, type_produit, statut, date_amm, date_retrait').ilike('nom_commercial', q).limit(20),
+        supabase.from('produits_mfsc').select('amm, nom_produit, type_produit, composition').ilike('nom_produit', q).limit(20),
+      ])
+      const phyto: SearchResultItem[] = (phytoRes.data ?? []).map(p => ({
+        kind: 'phyto' as const,
+        amm: p.amm, nom: p.nom_commercial, titulaire: p.titulaire,
+        type_produit: p.type_produit, statut: p.statut,
+        date_amm: p.date_amm ?? null, date_retrait: p.date_retrait ?? null,
+      }))
+      const mfsc: SearchResultItem[] = (mfscRes.data ?? []).map(p => ({
+        kind: 'mfsc' as const,
+        amm: p.amm, nom: p.nom_produit,
+        type_produit: p.type_produit, composition: p.composition,
+      }))
+      setSearchResults([...phyto, ...mfsc])
+      setSearchLoading(false)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
 
   useEffect(() => {
     parcels.forEach(parcel => {
@@ -440,6 +474,28 @@ export default function Home() {
       </header>
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
+
+        {/* Barre de navigation verticale */}
+        <nav className="flex flex-col items-center gap-1 py-3 flex-shrink-0" style={{ width: 48, borderRight: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.40)' }}>
+          <button
+            title="Mes parcelles"
+            onClick={() => setView('parcels')}
+            className="p-2 rounded-lg transition-colors"
+            style={view === 'parcels' ? { color: 'var(--accent)', background: 'var(--accent-bg)' } : { color: 'var(--text-muted)' }}
+          >
+            <Map size={18} />
+          </button>
+          <button
+            title="Base de données"
+            onClick={() => setView('search')}
+            className="p-2 rounded-lg transition-colors"
+            style={view === 'search' ? { color: 'var(--accent)', background: 'var(--accent-bg)' } : { color: 'var(--text-muted)' }}
+          >
+            <Search size={18} />
+          </button>
+        </nav>
+
+        {view === 'parcels' ? (<>
         <aside className={`flex flex-col overflow-hidden w-full md:w-80 md:flex-shrink-0 ${selection ? 'hidden md:flex' : 'flex'}`} style={{ background: 'rgba(255,255,255,0.40)', borderRight: '1px solid var(--glass-border)' }}>
           <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--glass-border)' }}>
             <h1 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Mes parcelles</h1>
@@ -694,6 +750,38 @@ export default function Home() {
             </>
           )}
         </main>
+        </>) : (<>
+
+        {/* Sidebar recherche */}
+        <aside className={`flex flex-col overflow-hidden w-full md:w-80 md:flex-shrink-0 ${selectedProduct ? 'hidden md:flex' : 'flex'}`} style={{ background: 'rgba(255,255,255,0.40)', borderRight: '1px solid var(--glass-border)' }}>
+          <div className="flex items-center px-4 py-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--glass-border)' }}>
+            <h1 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Base de données</h1>
+          </div>
+          <SearchSidebar
+            query={searchQuery}
+            onQueryChange={setSearchQuery}
+            results={searchResults}
+            loading={searchLoading}
+            selectedProduct={selectedProduct}
+            onSelectProduct={setSelectedProduct}
+          />
+        </aside>
+
+        {/* Détail produit */}
+        <main className={`flex-1 flex flex-col overflow-hidden ${!selectedProduct ? 'hidden md:flex' : ''}`}>
+          {selectedProduct && (
+            <button
+              onClick={() => setSelectedProduct(null)}
+              className="md:hidden flex items-center gap-1 px-4 py-3 text-sm flex-shrink-0 transition-colors"
+              style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--glass-border)' }}
+            >
+              ← Recherche
+            </button>
+          )}
+          <ProductDetailView product={selectedProduct} />
+        </main>
+
+        </>)}
       </div>
 
       {viewingIntervention && (

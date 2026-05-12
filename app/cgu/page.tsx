@@ -6,7 +6,7 @@ export default function CGU() {
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
       <div className="max-w-2xl mx-auto bg-white rounded-xl border border-gray-100 p-8">
-        <Link href="/" className="text-xs text-green-700 hover:underline mb-6 inline-block">← Retour</Link>
+        <Link href="/" className="text-xs text-gray-600 hover:underline mb-6 inline-block">← Retour</Link>
         <h1 className="text-xl font-bold text-gray-900 mb-2">{"Conditions générales d'utilisation"}</h1>
         <p className="text-xs text-gray-400 mb-8">Dernière mise à jour : 9 mai 2026</p>
 

@@ -6,7 +6,7 @@ export default function MentionsLegales() {
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
       <div className="max-w-2xl mx-auto bg-white rounded-xl border border-gray-100 p-8">
-        <Link href="/" className="text-xs text-green-700 hover:underline mb-6 inline-block">← Retour</Link>
+        <Link href="/" className="text-xs text-gray-600 hover:underline mb-6 inline-block">← Retour</Link>
         <h1 className="text-xl font-bold text-gray-900 mb-8">Mentions légales</h1>
 
         <section className="mb-6">
@@ -14,7 +14,7 @@ export default function MentionsLegales() {
           <p className="text-sm text-gray-600">
             Jules Videgrain<br />
             Particulier — projet personnel<br />
-            Contact : <a href="mailto:jv9994@icloud.com" className="text-green-700 hover:underline">jv9994@icloud.com</a>
+            Contact : <a href="mailto:jv9994@icloud.com" className="text-gray-600 hover:underline">jv9994@icloud.com</a>
           </p>
         </section>
 
@@ -24,7 +24,7 @@ export default function MentionsLegales() {
             Vercel Inc.<br />
             340 Pine Street, Suite 701<br />
             San Francisco, CA 94104, États-Unis<br />
-            <a href="https://vercel.com" className="text-green-700 hover:underline" target="_blank" rel="noopener noreferrer">vercel.com</a>
+            <a href="https://vercel.com" className="text-gray-600 hover:underline" target="_blank" rel="noopener noreferrer">vercel.com</a>
           </p>
         </section>
 
@@ -33,7 +33,7 @@ export default function MentionsLegales() {
           <p className="text-sm text-gray-600">
             Les données utilisateurs (comptes et parcelles) sont hébergées par Supabase, Inc.
             sur des serveurs Amazon Web Services (région us-east-1, États-Unis).<br />
-            <a href="https://supabase.com" className="text-green-700 hover:underline" target="_blank" rel="noopener noreferrer">supabase.com</a>
+            <a href="https://supabase.com" className="text-gray-600 hover:underline" target="_blank" rel="noopener noreferrer">supabase.com</a>
           </p>
         </section>
 
@@ -47,9 +47,9 @@ export default function MentionsLegales() {
           </p>
           <p className="text-sm text-gray-600">
             Les données météorologiques sont fournies par{' '}
-            <a href="https://open-meteo.com" className="text-green-700 hover:underline" target="_blank" rel="noopener noreferrer">Open-Meteo</a>,
+            <a href="https://open-meteo.com" className="text-gray-600 hover:underline" target="_blank" rel="noopener noreferrer">Open-Meteo</a>,
             sous licence{' '}
-            <a href="https://creativecommons.org/licenses/by/4.0/" className="text-green-700 hover:underline" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>.
+            <a href="https://creativecommons.org/licenses/by/4.0/" className="text-gray-600 hover:underline" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>.
           </p>
         </section>
 

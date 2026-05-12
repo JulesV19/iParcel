@@ -18,7 +18,7 @@ const CATEGORY_LABELS: Record<InterventionCategory, string> = {
 
 const CATEGORY_COLOR: Record<InterventionCategory, string> = {
   travail_sol:      'bg-amber-100 text-amber-700',
-  semis:            'bg-green-100 text-green-700',
+  semis:            'bg-gray-100 text-gray-600',
   fertilisation:    'bg-blue-100 text-blue-700',
   traitement_phyto: 'bg-red-100 text-red-700',
   irrigation:       'bg-cyan-100 text-cyan-700',
@@ -184,7 +184,7 @@ export default function InterventionDetailModal({ intervention: i, onClose, onEd
             <button onClick={onClose} className="text-sm text-gray-500 hover:underline">Fermer</button>
             <button
               onClick={onEdit}
-              className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700"
+              className="px-4 py-2 bg-gray-800 text-white text-sm rounded-lg hover:bg-gray-700"
             >
               Modifier
             </button>
