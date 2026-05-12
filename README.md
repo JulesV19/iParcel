@@ -46,6 +46,12 @@ Développé avec Next.js, hébergé sur Vercel, sans backend propre.
 - Notes libres par parcelle avec date locale automatique
 - Ajout, modification, suppression
 
+**Base de données produits (recherche libre)**
+- Navigation par icône dans la barre latérale gauche (vue parcelles / vue recherche)
+- Recherche unifiée par nom commercial dans les deux bases : phytosanitaires e-phy (~15 000 produits) et fertilisants MFSC
+- Fiche produit : informations générales (AMM, titulaire, type, statut, dates)
+- Usages par culture : sélection en pills, détail par cible/nuisible avec dose, DAR, ZNT, conditions d'emploi
+
 ---
 
 ## Stack
