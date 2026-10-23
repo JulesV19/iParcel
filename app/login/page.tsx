@@ -7,6 +7,7 @@ import { Eye, EyeOff } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { Wordmark } from '@/components/Brand'
 import Turnstile from '@/components/Turnstile'
+import { consentPath, readAuthorizationId } from '@/lib/oauth'
 
 // Mosaïque de tuiles Esri au-dessus de la Beauce (zoom 15)
 const TILE_Z = 15
@@ -94,6 +95,9 @@ export default function LoginPage() {
 
     setLoading(false)
     setAttempt(a => a + 1)
+    // Connexion demandée par une application tierce (OAuth) : retour à l'écran de consentement
+    const authorizationId = readAuthorizationId(window.location.search)
+    const home = authorizationId ? consentPath(authorizationId) : '/'
 
     if (mode === 'signup' && (error?.code === 'user_already_exists' || error?.code === 'email_exists')) {
       setMessage({ tone: 'ok', text: SIGNUP_SENT })
@@ -102,13 +106,13 @@ export default function LoginPage() {
       console.error('Auth Supabase :', error.code, error.status, error.message)
       setMessage({ tone: 'error', text: authErrorMessage(error, mode) })
     } else if (mode === 'signup' && data.session) {
-      router.replace('/')
+      router.replace(home)
     } else if (mode === 'signup') {
       // Email déjà inscrit : Supabase renvoie un utilisateur sans identité, traité comme une inscription réussie
       setMessage({ tone: 'ok', text: SIGNUP_SENT })
       setMode('login')
     } else {
-      router.replace('/')
+      router.replace(home)
     }
   }
 

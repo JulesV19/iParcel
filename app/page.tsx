@@ -85,7 +85,7 @@ export default function Home() {
 
   // Vue parcelle
   const [activeDate, setActiveDate] = useState<string | null>(null)
-  const [index, setIndex] = useState<IndexType>('NDVI')
+  const [index, setIndex] = useState<IndexType>('RGB')
   const [opacity, setOpacity] = useState(0.92)
   const [results, setResults] = useState<Record<string, RenderResult>>({})
   const [renderErrors, setRenderErrors] = useState<Record<string, string>>({})
