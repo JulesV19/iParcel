@@ -1,6 +1,6 @@
 # iParcel
 
-Application web pour agriculteurs de grandes cultures. Permet de dessiner des parcelles sur une carte satellite, visualiser les images Sentinel-2, suivre la météo locale, et tenir un registre des interventions agricoles.
+Visualiseur de parcelles agricoles. Permet de dessiner des parcelles sur une carte satellite, visualiser les images Sentinel-2 et suivre la météo locale.
 
 Développé avec Next.js, hébergé sur Vercel, sans backend propre.
 
@@ -8,49 +8,28 @@ Développé avec Next.js, hébergé sur Vercel, sans backend propre.
 
 ## Fonctionnalités
 
+**Carte**
+- Carte satellite plein écran (ESRI World Imagery + noms de lieux), panneau flottant à gauche sur ordinateur, feuille glissante en bas sur mobile
+- Recherche de commune ou d'adresse (Géoplateforme IGN) et bouton « Me localiser »
+- Parcelles affichées avec leur nom ; survol de la liste ↔ surbrillance sur la carte
+- Thème clair ou sombre selon l'appareil
+
 **Parcelles**
-- Dessin de polygones sur fond satellite ESRI (Leaflet)
-- Surface calculée en ha ou m²
-- Renommage et suppression depuis le tableau de bord
+- Dessin directement sur la carte, avec suivi des sommets et de la surface en direct
+- Avertissement si l'on dessine trop dézoomé ou si la surface est aberrante
+- Renommage et suppression depuis la fiche parcelle ; parcelle ouverte gardée dans l'adresse (`/?p=…`)
 
 **Images satellite**
-- Dates Sentinel-2 disponibles affichées en widget horizontal par parcelle
-- Ouverture automatique sur la date la plus récente au clic
-- Affichage de l'image recadrée sur la parcelle (COG, range requests HTTP)
-- Indices spectraux : RGB, NDVI, NDWI, NDMI avec légende agronomique
-- Métadonnées de prise de vue : satellite, élévation solaire, couverture nuageuse, occupation du sol
+- Frise des 12 dernières dates Sentinel-2 avec nébulosité ; ouverture sur la plus récente peu nuageuse
+- Image reprojetée en WGS84 et posée sur la parcelle dans la carte (COG, range requests HTTP), opacité réglable
+- Indices spectraux : couleurs naturelles, NDVI, NDWI, NDMI, avec valeur moyenne et histogramme sur la parcelle
+- Détails de l'acquisition : satellite, heure, élévation solaire, nébulosité, occupation du sol
+- Navigation entre dates avec les flèches ← →, Échap pour revenir à la liste
 
 **Météo**
 - Météo locale au centroïde de chaque parcelle (Open-Meteo, sans clé API)
-- Conditions actuelles + frise 5 jours (J-2 → J+2)
-- Mini météo du jour visible directement dans la liste de parcelles
-
-**Interventions agricoles**
-- 8 catégories : travail du sol, semis, fertilisation, traitement phytosanitaire, irrigation, récolte, observation, autre
-- Champs communs : date, culture (22 cultures), stade BBCH, opérateur, matériel, surface, commentaire
-- Conditions météo : remplissage automatique depuis Open-Meteo selon la date de l'intervention
-- Vue détail par clic + modification et suppression
-- Champs spécifiques par catégorie (variété, rendement, volume de bouillie, etc.)
-
-**Traitement phytosanitaire**
-- Recherche autocomplete dans la base e-phy ANSES (~15 000 produits)
-- Vérification automatique de conformité : culture autorisée, cible autorisée, dose maximale
-- Menu déroulant dynamique des cibles selon produit × culture
-
-**Fertilisation**
-- Recherche autocomplete dans la base MFSC/PRODUIT-MIXTE e-phy ANSES
-- Composition détaillée par produit avec fenêtres min/max et alerte hors-fenêtre
-- Vérification de la dose autorisée par culture
-
-**Notes de terrain**
-- Notes libres par parcelle avec date locale automatique
-- Ajout, modification, suppression
-
-**Base de données produits (recherche libre)**
-- Navigation par icône dans la barre latérale gauche (vue parcelles / vue recherche)
-- Recherche unifiée par nom commercial dans les deux bases : phytosanitaires e-phy (~15 000 produits) et fertilisants MFSC
-- Fiche produit : informations générales (AMM, titulaire, type, statut, dates)
-- Usages par culture : sélection en pills, détail par cible/nuisible avec dose, DAR, ZNT, conditions d'emploi
+- Conditions actuelles (température, ressenti, humidité, vent) + frise 5 jours (J-2 → J+2) avec pluie à l'échelle
+- Météo du jour visible directement dans la liste de parcelles
 
 ---
 
@@ -65,6 +44,7 @@ Développé avec Next.js, hébergé sur Vercel, sans backend propre.
 | Images satellite | Element 84 Earth Search (STAC API, Sentinel-2 L2A) |
 | Lecture COG | geotiff.js (range requests HTTP) |
 | Météo | Open-Meteo (gratuit, sans clé) |
+| Recherche de lieu | Géoplateforme IGN (gratuit, sans clé) |
 | Icônes | lucide-react |
 | Déploiement | Vercel |
 
@@ -88,28 +68,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 
 ## Base de données Supabase
 
-Exécuter `supabase/schema-interventions.sql` dans l'éditeur SQL de Supabase pour créer les tables `interventions`, `produits_phyto`, `usages_phyto`, `produits_mfsc`, `usages_mfsc`.
+Seule la table `parcels` est utilisée (schéma dans la doc Obsidian), ainsi que la fonction `delete_user()` pour la suppression de compte.
 
-Les tables `parcels` et `notes` sont à créer manuellement (schémas dans la doc Obsidian).
+`supabase/limites-parcels.sql` impose les limites côté base (nom de 80 caractères, géométrie valide de 1 000 sommets au plus, 200 parcelles par compte) : le navigateur ne fait que les refléter.
 
----
-
-## Importer les données e-phy (ANSES)
-
-Ajouter `SUPABASE_SERVICE_ROLE_KEY` dans `.env.local`, puis lancer les scripts dans l'ordre :
-
-```bash
-# Produits phytosanitaires (~15 000 lignes)
-node scripts/import-ephy.mjs produits_utf8.csv
-
-# Usages phyto (~80 000 lignes)
-node scripts/import-usages.mjs produits_usages_utf8.csv
-
-# Produits fertilisants MFSC
-node scripts/import-mfsc.mjs mfsc_et_mixte_composition_utf8.csv
-
-# Doses autorisées MFSC par culture
-node scripts/import-usages-mfsc.mjs mfsc_et_mixte_usage_utf8.csv
-```
-
-Les CSV sont disponibles sur [ephy.anses.fr](https://ephy.anses.fr) → Téléchargement des données.
+`supabase/drop-hors-visualiseur.sql` supprime les tables des anciennes fonctionnalités (interventions, base produits e-phy, notes).

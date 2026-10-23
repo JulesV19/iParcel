@@ -2,139 +2,216 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { Eye, EyeOff } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { Wordmark } from '@/components/Brand'
+import Turnstile from '@/components/Turnstile'
+
+// Mosaïque de tuiles Esri au-dessus de la Beauce (zoom 15)
+const TILE_Z = 15
+const TILE_X0 = 16526
+const TILE_Y0 = 11345
+const COLS = 8
+const ROWS = 6
+
+function FieldsBackdrop() {
+  return (
+    <div aria-hidden className="absolute inset-0 overflow-hidden bg-[#1d2a1f]">
+      <div
+        className="absolute left-1/2 top-1/2 grid"
+        style={{
+          gridTemplateColumns: `repeat(${COLS}, 256px)`,
+          marginLeft: -(COLS * 256) / 2,
+          marginTop: -(ROWS * 256) / 2,
+          animation: 'drift 90s ease-in-out infinite alternate',
+        }}
+      >
+        {Array.from({ length: ROWS * COLS }, (_, i) => {
+          const x = TILE_X0 + (i % COLS)
+          const y = TILE_Y0 + Math.floor(i / COLS)
+          return (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={i}
+              src={`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${TILE_Z}/${y}/${x}`}
+              alt=""
+              width={256}
+              height={256}
+              className="block h-64 w-64 max-w-none"
+            />
+          )
+        })}
+      </div>
+      <div className="absolute inset-0 bg-gradient-to-t from-[#0c100d]/85 via-[#0c100d]/30 to-[#0c100d]/40 md:bg-gradient-to-r md:from-[#0c100d]/80 md:via-[#0c100d]/35 md:to-transparent" />
+    </div>
+  )
+}
+
+// Même réponse qu'un email soit déjà inscrit ou non : la page ne révèle pas qui a un compte
+const SIGNUP_SENT = 'Si cette adresse n’a pas encore de compte, un email de confirmation vient de vous être envoyé. Sinon, connectez-vous.'
+const MIN_PASSWORD = 8
+
+function authErrorMessage(error: { code?: string; status?: number; message: string }, mode: 'login' | 'signup'): string {
+  switch (error.code) {
+    case 'invalid_credentials': return 'Email ou mot de passe incorrect.'
+    case 'email_not_confirmed': return 'Adresse pas encore confirmée. Ouvrez le lien reçu par email, puis reconnectez-vous.'
+    case 'captcha_failed': return 'La vérification anti-robot a échoué. Réessayez.'
+    case 'weak_password': return `Mot de passe trop faible : ${MIN_PASSWORD} caractères minimum, évitez les mots de passe courants.`
+    case 'over_email_send_rate_limit': return "Trop d'emails envoyés récemment. Réessayez dans une heure."
+    case 'over_request_rate_limit': return 'Trop de tentatives. Patientez quelques minutes.'
+    case 'signup_disabled': return 'Les inscriptions sont fermées pour le moment.'
+    case 'email_address_invalid': return 'Cette adresse email est refusée. Essayez-en une autre.'
+  }
+  if (!error.status) return 'Serveur injoignable. Vérifiez votre connexion internet.'
+  return mode === 'login'
+    ? `Connexion impossible (${error.message}).`
+    : `Création du compte impossible (${error.message}).`
+}
 
 export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [mode, setMode] = useState<'login' | 'signup'>('login')
-  const [error, setError] = useState('')
+  const [message, setMessage] = useState<{ text: string; tone: 'ok' | 'error' } | null>(null)
   const [loading, setLoading] = useState(false)
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null)
+  // Change après chaque tentative : le widget est recréé pour fournir un nouveau jeton
+  const [attempt, setAttempt] = useState(0)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setError('')
+    if (!captchaToken) return
+    setMessage(null)
     setLoading(true)
 
-    const { error } =
+    const { data, error } =
       mode === 'login'
-        ? await supabase.auth.signInWithPassword({ email, password })
-        : await supabase.auth.signUp({ email, password })
+        ? await supabase.auth.signInWithPassword({ email, password, options: { captchaToken } })
+        : await supabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin, captchaToken } })
 
     setLoading(false)
+    setAttempt(a => a + 1)
 
-    if (error) {
-      setError(mode === 'login'
-        ? 'Email ou mot de passe incorrect.'
-        : 'Impossible de créer le compte. Cet email est peut-être déjà utilisé.')
+    if (mode === 'signup' && (error?.code === 'user_already_exists' || error?.code === 'email_exists')) {
+      setMessage({ tone: 'ok', text: SIGNUP_SENT })
+      setMode('login')
+    } else if (error) {
+      console.error('Auth Supabase :', error.code, error.status, error.message)
+      setMessage({ tone: 'error', text: authErrorMessage(error, mode) })
+    } else if (mode === 'signup' && data.session) {
+      router.replace('/')
     } else if (mode === 'signup') {
-      setError('Compte créé ! Vérifiez votre email puis connectez-vous.')
+      // Email déjà inscrit : Supabase renvoie un utilisateur sans identité, traité comme une inscription réussie
+      setMessage({ tone: 'ok', text: SIGNUP_SENT })
+      setMode('login')
     } else {
-      router.push('/')
+      router.replace('/')
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      {/* Ambient glow blobs */}
-      <div
-        aria-hidden
-        className="pointer-events-none fixed inset-0 overflow-hidden"
-      >
-        <div
-          style={{
-            position: 'absolute', top: '15%', left: '25%',
-            width: 500, height: 500,
-            background: 'radial-gradient(circle, rgba(22,163,74,0.08) 0%, transparent 70%)',
-            filter: 'blur(40px)',
-          }}
-        />
-        <div
-          style={{
-            position: 'absolute', bottom: '20%', right: '20%',
-            width: 400, height: 400,
-            background: 'radial-gradient(circle, rgba(59,130,246,0.06) 0%, transparent 70%)',
-            filter: 'blur(40px)',
-          }}
-        />
-      </div>
+    <main className="relative flex min-h-full flex-col md:flex-row">
+      <FieldsBackdrop />
 
-      <div
-        className="glass-strong rounded-2xl w-full max-w-sm p-8 relative"
-        style={{ borderRadius: 20 }}
-      >
-        {/* Logo */}
-        <div className="flex flex-col items-center mb-8">
-          <h1
-            className="text-3xl font-bold tracking-tight mb-1"
-            style={{ color: 'var(--accent)' }}
-          >
-            iParcel
+      <section className="relative flex flex-1 flex-col justify-end px-6 pt-[max(28px,env(safe-area-inset-top))] pb-8 text-white md:justify-between md:px-14 md:py-12">
+        <span className="hidden md:block">
+          <Wordmark />
+        </span>
+        <div className="max-w-md">
+          <h1 className="text-[34px] font-bold leading-[1.05] tracking-[-0.03em] md:text-[52px]">
+            Vos parcelles,<br />vues du ciel.
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-            Gestion de parcelles agricoles
+          <p className="mt-4 max-w-sm text-[15px] leading-relaxed text-white/75">
+            Images Sentinel-2 tous les 2 à 5 jours, indices de végétation et météo locale, parcelle par parcelle.
           </p>
         </div>
+        <p className="hidden text-[11px] text-white/50 md:block">Imagerie © Esri, Maxar · Données Copernicus Sentinel-2</p>
+      </section>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <input
-            id="login-email"
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="input-glass rounded-xl px-4 py-3 text-sm w-full"
-          />
-          <input
-            id="login-password"
-            type="password"
-            placeholder="Mot de passe"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className="input-glass rounded-xl px-4 py-3 text-sm w-full"
-          />
+      <section className="relative flex items-center justify-center md:w-[480px] md:shrink-0 md:p-10">
+        <div className="w-full rounded-t-[28px] bg-paper px-6 pt-7 pb-[max(24px,env(safe-area-inset-bottom))] text-ink shadow-panel md:max-w-sm md:rounded-[28px] md:p-8">
+          <div className="md:hidden mb-6"><Wordmark /></div>
 
-          {error && (
-            <p
-              className="text-sm rounded-xl px-3 py-2"
-              style={{
-                color: error.startsWith('Compte créé')
-                  ? 'var(--accent)'
-                  : '#f87171',
-                background: error.startsWith('Compte créé')
-                  ? 'rgba(0,230,118,0.08)'
-                  : 'rgba(248,113,113,0.08)',
-                border: `1px solid ${error.startsWith('Compte créé') ? 'rgba(0,230,118,0.2)' : 'rgba(248,113,113,0.2)'}`,
-              }}
-            >
-              {error}
-            </p>
-          )}
+          <div role="tablist" aria-label="Accès au compte" className="mb-6 grid grid-cols-2 gap-1 rounded-[14px] bg-paper-2 p-1">
+            {(['login', 'signup'] as const).map(m => (
+              <button
+                key={m}
+                role="tab"
+                aria-selected={mode === m}
+                onClick={() => { setMode(m); setMessage(null) }}
+                className={`h-9 rounded-[10px] text-sm font-semibold transition-all ${mode === m ? 'bg-paper text-ink shadow-[0_1px_3px_rgb(0_0_0/0.12)]' : 'text-ink-2 hover:text-ink'}`}
+              >
+                {m === 'login' ? 'Connexion' : 'Créer un compte'}
+              </button>
+            ))}
+          </div>
 
-          <button
-            id="login-submit"
-            type="submit"
-            disabled={loading}
-            className="btn-accent rounded-xl py-3 text-sm font-semibold mt-1 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? '…' : mode === 'login' ? 'Se connecter' : 'Créer un compte'}
-          </button>
-        </form>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[13px] font-semibold">Email</span>
+              <input
+                id="login-email"
+                type="email"
+                autoComplete="email"
+                inputMode="email"
+                placeholder="vous@exemple.fr"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+                className="field"
+              />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[13px] font-semibold">Mot de passe</span>
+              <span className="relative">
+                <input
+                  id="login-password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                  minLength={mode === 'signup' ? MIN_PASSWORD : undefined}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required
+                  className="field pr-11"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(s => !s)}
+                  aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                  className="absolute right-1.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-ink-3 hover:text-ink"
+                >
+                  {showPassword ? <EyeOff size={17} aria-hidden /> : <Eye size={17} aria-hidden />}
+                </button>
+              </span>
+              {mode === 'signup' && <span className="text-xs text-ink-3">{MIN_PASSWORD} caractères minimum.</span>}
+            </label>
 
-        <p className="text-sm text-center mt-5" style={{ color: 'var(--text-muted)' }}>
-          {mode === 'login' ? 'Pas encore de compte ?' : 'Déjà un compte ?'}{' '}
-          <button
-            onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError('') }}
-            className="font-medium transition-colors hover:opacity-80"
-            style={{ color: 'var(--accent)' }}
-          >
-            {mode === 'login' ? 'Créer un compte' : 'Se connecter'}
-          </button>
-        </p>
-      </div>
-    </div>
+            {message && (
+              <p
+                role="status"
+                className={`rounded-xl px-3.5 py-2.5 text-[13px] leading-snug ${message.tone === 'error' ? 'bg-danger-soft text-danger' : 'bg-paper-2 text-ink'}`}
+              >
+                {message.text}
+              </p>
+            )}
+
+            <Turnstile key={attempt} onToken={setCaptchaToken} />
+
+            <button id="login-submit" type="submit" disabled={loading || !captchaToken} className="btn btn-primary mt-1 w-full">
+              {loading ? 'Un instant…' : !captchaToken ? 'Vérification anti-robot…' : mode === 'login' ? 'Se connecter' : 'Créer mon compte'}
+            </button>
+          </form>
+
+          <nav className="mt-6 flex justify-center gap-4 text-[11px] text-ink-3">
+            <Link href="/mentions-legales" className="hover:text-ink">Mentions légales</Link>
+            <Link href="/confidentialite" className="hover:text-ink">Confidentialité</Link>
+            <Link href="/cgu" className="hover:text-ink">CGU</Link>
+          </nav>
+        </div>
+      </section>
+    </main>
   )
 }

@@ -1,28 +1,31 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Schibsted_Grotesk, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const schibsted = Schibsted_Grotesk({
+  variable: "--font-schibsted",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const plexMono = IBM_Plex_Mono({
+  variable: "--font-plex-mono",
   subsets: ["latin"],
+  weight: ["400", "500"],
 });
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#e9ece5" },
+    { media: "(prefers-color-scheme: dark)", color: "#0c100d" },
+  ],
 };
 
 export const metadata: Metadata = {
   title: "iParcel",
-  description: "Gestion de parcelles agricoles",
+  description: "Vos parcelles vues du ciel : images Sentinel-2, indices de végétation et météo locale.",
   manifest: "/manifest.json",
   icons: {
     apple: "/apple-touch-icon.png",
@@ -41,8 +44,9 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      lang="fr"
+      suppressHydrationWarning
+      className={`${schibsted.variable} ${plexMono.variable} h-full antialiased`}
     >
       <body className="h-full">{children}</body>
     </html>

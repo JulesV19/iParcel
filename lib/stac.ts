@@ -79,8 +79,10 @@ export async function fetchSentinelDates(geometry: GeoJSON.Polygon): Promise<Sen
     body: JSON.stringify({
       collections: ['sentinel-2-l2a'],
       bbox: getBbox(geometry),
-      limit: 10,
+      limit: 30,
+      sortby: [{ field: 'properties.datetime', direction: 'desc' }],
     }),
+    signal: AbortSignal.timeout(15_000),
   })
   if (!res.ok) throw new Error(`STAC API error ${res.status}`)
   const json = await res.json()
@@ -106,15 +108,25 @@ export async function fetchSentinelDates(geometry: GeoJSON.Polygon): Promise<Sen
     }))
     .filter((item: SentinelItem) => item.thumbnail)
     .sort((a: SentinelItem, b: SentinelItem) => b.date.localeCompare(a.date))
-  // Dédupliquer par date : plusieurs granules Sentinel peuvent couvrir le même bbox à la même date
+  // Dédupliquer par jour : plusieurs granules Sentinel peuvent couvrir le même bbox le même jour
   const seen = new Set<string>()
   return items.filter(item => {
-    if (seen.has(item.date)) return false
-    seen.add(item.date)
+    const day = item.date.slice(0, 10)
+    if (seen.has(day)) return false
+    seen.add(day)
     return true
-  }).slice(0, 5)
+  }).slice(0, 12)
+}
+
+/** Image proposée par défaut : la plus récente peu nuageuse, sinon la plus récente. */
+export function pickDefaultItem(items: SentinelItem[]): SentinelItem | null {
+  return items.find(i => i.cloudCover !== null && i.cloudCover <= 30) ?? items[0] ?? null
 }
 
 export function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+export function formatShortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
 }

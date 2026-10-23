@@ -11,6 +11,7 @@ export interface WeatherData {
   days: DayWeather[]
   todayIndex: number
   current: {
+    temp: number
     apparentTemp: number
     humidity: number
     windKmh: number
@@ -56,13 +57,13 @@ export async function fetchWeather(lat: number, lon: number): Promise<WeatherDat
     latitude: lat.toFixed(5),
     longitude: lon.toFixed(5),
     daily: 'temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode,wind_speed_10m_max',
-    current: 'apparent_temperature,relative_humidity_2m,wind_speed_10m,weathercode',
+    current: 'temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weathercode',
     start_date: fmtDate(start),
     end_date: fmtDate(end),
     timezone: 'auto',
   })
 
-  const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`)
+  const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`, { signal: AbortSignal.timeout(15_000) })
   if (!res.ok) throw new Error(`Open-Meteo ${res.status}`)
   const json = await res.json()
 
@@ -89,6 +90,7 @@ export async function fetchWeather(lat: number, lon: number): Promise<WeatherDat
     days,
     todayIndex: todayIndex >= 0 ? todayIndex : 2,
     current: {
+      temp: safeRound(json.current.temperature_2m),
       apparentTemp: safeRound(json.current.apparent_temperature),
       humidity: safeRound(json.current.relative_humidity_2m),
       windKmh: safeRound(json.current.wind_speed_10m),
