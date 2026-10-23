@@ -593,6 +593,8 @@ export default function Home() {
           ) : (
             <DateStrip items={items} activeDate={item?.date ?? null} loading={isRendering} onPick={i => setActiveDate(i.date)} />
           )}
+          {/* Mention exigée par la licence Copernicus pour les images traitées */}
+          {item && <p className="text-[11px] text-ink-3">Contient des données Copernicus Sentinel modifiées ({new Date(item.date).getFullYear()})</p>}
         </section>
 
         {items.length > 0 && (

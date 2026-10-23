@@ -200,6 +200,15 @@ export default function LoginPage() {
 
             <Turnstile key={attempt} onToken={setCaptchaToken} />
 
+            {mode === 'signup' && (
+              <p className="text-xs leading-snug text-ink-3">
+                En créant un compte, vous acceptez les{' '}
+                <Link href="/cgu" className="underline underline-offset-2 hover:text-ink">conditions d’utilisation</Link>.
+                Vos données sont traitées comme décrit dans la{' '}
+                <Link href="/confidentialite" className="underline underline-offset-2 hover:text-ink">politique de confidentialité</Link>.
+              </p>
+            )}
+
             <button id="login-submit" type="submit" disabled={loading || !captchaToken} className="btn btn-primary mt-1 w-full">
               {loading ? 'Un instant…' : !captchaToken ? 'Vérification anti-robot…' : mode === 'login' ? 'Se connecter' : 'Créer mon compte'}
             </button>

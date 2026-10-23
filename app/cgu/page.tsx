@@ -1,10 +1,11 @@
+import Link from 'next/link'
 import LegalPage from '@/components/LegalPage'
 
 export const metadata = { title: "Conditions d'utilisation — iParcel" }
 
 export default function CGU() {
   return (
-    <LegalPage title="Conditions générales d'utilisation" updated="20 octobre 2026">
+    <LegalPage title="Conditions générales d'utilisation" updated="23 octobre 2026">
       <section className="mb-6">
         <h2 className="text-sm font-semibold text-ink mb-2">1. Présentation du service</h2>
         <p className="text-sm text-ink-2">
@@ -66,7 +67,15 @@ export default function CGU() {
       </section>
 
       <section className="mb-6">
-        <h2 className="text-sm font-semibold text-ink mb-2">7. Modification des CGU</h2>
+        <h2 className="text-sm font-semibold text-ink mb-2">7. Données personnelles</h2>
+        <p className="text-sm text-ink-2">
+          Le traitement des données personnelles est décrit dans la{' '}
+          <Link href="/confidentialite" className="text-ink-2">politique de confidentialité</Link>.
+        </p>
+      </section>
+
+      <section className="mb-6">
+        <h2 className="text-sm font-semibold text-ink mb-2">8. Modification des CGU</h2>
         <p className="text-sm text-ink-2">
           L’éditeur se réserve le droit de modifier les présentes CGU. Les utilisateurs
           seront informés par e-mail en cas de modification substantielle.
@@ -74,7 +83,7 @@ export default function CGU() {
       </section>
 
       <section>
-        <h2 className="text-sm font-semibold text-ink mb-2">8. Droit applicable</h2>
+        <h2 className="text-sm font-semibold text-ink mb-2">9. Droit applicable</h2>
         <p className="text-sm text-ink-2">
           Les présentes CGU sont soumises au droit français. En cas de litige,
           les parties s’efforceront de trouver une solution amiable avant tout recours judiciaire.

@@ -10,6 +10,7 @@ export default function MentionsLegales() {
         <p className="text-sm text-ink-2">
           Jules Videgrain<br />
           Particulier — projet personnel<br />
+          Directeur de la publication : Jules Videgrain<br />
           Contact : <a href="mailto:jv9994@icloud.com" className="text-ink-2">jv9994@icloud.com</a>
         </p>
       </section>
@@ -18,8 +19,8 @@ export default function MentionsLegales() {
         <h2 className="text-sm font-semibold text-ink mb-2">Hébergement</h2>
         <p className="text-sm text-ink-2">
           Vercel Inc.<br />
-          340 Pine Street, Suite 701<br />
-          San Francisco, CA 94104, États-Unis<br />
+          440 N Barranca Avenue #4133<br />
+          Covina, CA 91723, États-Unis<br />
           <a href="https://vercel.com" className="text-ink-2" target="_blank" rel="noopener noreferrer">vercel.com</a>
         </p>
       </section>
@@ -28,7 +29,7 @@ export default function MentionsLegales() {
         <h2 className="text-sm font-semibold text-ink mb-2">Hébergement des données</h2>
         <p className="text-sm text-ink-2">
           Les données utilisateurs (comptes et parcelles) sont hébergées par Supabase, Inc.
-          sur des serveurs Amazon Web Services (région us-east-1, États-Unis).<br />
+          sur des serveurs Amazon Web Services situés en Irlande (région eu-west-1, Union européenne).<br />
           <a href="https://supabase.com" className="text-ink-2" target="_blank" rel="noopener noreferrer">supabase.com</a>
         </p>
       </section>
@@ -39,7 +40,12 @@ export default function MentionsLegales() {
           iParcel est un projet personnel. Les images satellitaires affichées sont issues du
           programme Copernicus de l’Agence Spatiale Européenne (ESA) — données Sentinel-2,
           distribuées via l’API publique Element 84 Earth Search. Leur usage est libre
-          conformément à la Licence Copernicus.
+          conformément à la Licence Copernicus : les images affichées contiennent des données
+          Copernicus Sentinel modifiées.
+        </p>
+        <p className="text-sm text-ink-2 mb-2">
+          Le fond de carte satellite est fourni par Esri (World Imagery) et ses partenaires
+          (Maxar, Earthstar Geographics). La recherche de lieux utilise la Géoplateforme de l’IGN.
         </p>
         <p className="text-sm text-ink-2">
           Les données météorologiques sont fournies par{' '}
