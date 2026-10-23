@@ -9,7 +9,8 @@ import { supabase } from '@/lib/supabase'
 import { readAuthorizationId } from '@/lib/oauth'
 import { Wordmark } from '@/components/Brand'
 
-// Données d'identité que Supabase transmet à l'application selon les scopes demandés
+// Données d'identité que Supabase transmet à l'application (ID token) selon les scopes demandés.
+// Le jeton d'accès, lui, n'en contient aucune (supabase/oauth-jeton-restreint.sql)
 const SCOPE_LABELS: Record<string, string> = {
   email: 'Votre adresse email',
   profile: 'Votre nom et votre photo de profil',
