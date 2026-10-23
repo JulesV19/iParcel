@@ -118,9 +118,9 @@ export async function fetchSentinelDates(geometry: GeoJSON.Polygon): Promise<Sen
   }).slice(0, 12)
 }
 
-/** Image proposée par défaut : la plus récente peu nuageuse, sinon la plus récente. */
+/** Image proposée par défaut : la plus récente, nuageuse ou non (le % de nuages est affiché sur la frise). */
 export function pickDefaultItem(items: SentinelItem[]): SentinelItem | null {
-  return items.find(i => i.cloudCover !== null && i.cloudCover <= 30) ?? items[0] ?? null
+  return items[0] ?? null
 }
 
 export function formatDate(iso: string): string {

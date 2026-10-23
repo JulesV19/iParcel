@@ -20,7 +20,7 @@ Développé avec Next.js, hébergé sur Vercel, sans backend propre.
 - Renommage et suppression depuis la fiche parcelle ; parcelle ouverte gardée dans l'adresse (`/?p=…`)
 
 **Images satellite**
-- Frise des 12 dernières dates Sentinel-2 avec nébulosité ; ouverture sur la plus récente peu nuageuse
+- Frise des 12 dernières dates Sentinel-2 avec nébulosité ; ouverture sur la plus récente, frise défilante (glisser, flèches)
 - Image reprojetée en WGS84 et posée sur la parcelle dans la carte (COG, range requests HTTP), opacité réglable
 - Indices spectraux : couleurs naturelles, NDVI, NDWI, NDMI, avec valeur moyenne et histogramme sur la parcelle
 - Détails de l'acquisition : satellite, heure, élévation solaire, nébulosité, occupation du sol

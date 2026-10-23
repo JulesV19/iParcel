@@ -30,6 +30,20 @@ alter table parcels
 
 create index if not exists parcels_user_id_idx on parcels (user_id);
 
+-- Sans cascade, les parcelles empêchent de supprimer un compte depuis le dashboard Supabase
+do $$
+declare c text;
+begin
+  for c in
+    select conname from pg_constraint
+    where conrelid = 'public.parcels'::regclass and contype = 'f' and confrelid = 'auth.users'::regclass
+  loop
+    execute format('alter table parcels drop constraint %I', c);
+  end loop;
+end $$;
+alter table parcels
+  add constraint parcels_user_id_fkey foreign key (user_id) references auth.users (id) on delete cascade;
+
 -- 200 parcelles par compte au plus ; le message est affiché tel quel dans l'app (code P0001)
 create or replace function parcels_limit()
 returns trigger
