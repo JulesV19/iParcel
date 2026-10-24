@@ -74,7 +74,8 @@ export default function ConsentPage() {
   async function switchAccount() {
     if (!authorizationId) return
     setBusy(true)
-    await supabase.auth.signOut()
+    // Cet appareil seulement : « global » déconnecterait aussi les autres applications connectées
+    await supabase.auth.signOut({ scope: 'local' })
     router.replace(`/login?authorization_id=${authorizationId}`)
   }
 

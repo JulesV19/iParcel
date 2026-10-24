@@ -16,6 +16,7 @@ export interface SentinelItem {
   nirUrl: string    // B08 — 10m
   greenUrl: string  // B03 — 10m
   swirUrl: string   // B11 — 20m
+  sclUrl: string    // SCL (classification nuages, ombres, neige) — 20m
   bbox: [number, number, number, number]
   cloudCover: number | null
   cloudShadow: number | null
@@ -48,6 +49,7 @@ type StacFeature = {
     nir?: { href: string }
     green?: { href: string }
     swir16?: { href: string }
+    scl?: { href: string }
   }
 }
 
@@ -96,6 +98,7 @@ export async function fetchSentinelDates(geometry: GeoJSON.Polygon): Promise<Sen
       nirUrl: f.assets.nir?.href ?? '',
       greenUrl: f.assets.green?.href ?? '',
       swirUrl: f.assets.swir16?.href ?? '',
+      sclUrl: f.assets.scl?.href ?? '',
       bbox: f.bbox,
       cloudCover: toPercent(f.properties['eo:cloud_cover']),
       cloudShadow: toPercent(f.properties['s2:cloud_shadow_percentage']),

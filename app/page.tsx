@@ -338,7 +338,8 @@ export default function Home() {
   }
 
   async function logout() {
-    await supabase.auth.signOut()
+    // Cet appareil seulement : « global » supprimerait aussi les sessions des applications connectées
+    await supabase.auth.signOut({ scope: 'local' })
     router.replace('/login')
   }
 

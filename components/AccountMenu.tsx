@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { LogOut, Trash2 } from 'lucide-react'
+import { LogOut, Plug, Trash2 } from 'lucide-react'
 
 export default function AccountMenu({ email, parcelCount, onLogout, onDeleteAccount }: {
   email: string
@@ -65,6 +65,10 @@ export default function AccountMenu({ email, parcelCount, onLogout, onDeleteAcco
 
           {!confirming ? (
             <div className="flex flex-col border-t border-line p-1.5">
+              <Link href="/applications" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm hover:bg-paper-2">
+                <Plug size={16} className="text-ink-3" aria-hidden />
+                Applications connectées
+              </Link>
               <button onClick={onLogout} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm hover:bg-paper-2">
                 <LogOut size={16} className="text-ink-3" aria-hidden />
                 Se déconnecter

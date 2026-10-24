@@ -143,8 +143,13 @@ function calcWindow(
 export const HIST_BINS = 40
 
 export interface ParcelStats {
+  /** NaN si tous les pixels de la parcelle sont masqués */
   mean: number
+  std: number
   histogram: number[]
+  pixelCount: number
+  /** Pixels exclus par le masque de nuages (0 sans masque) */
+  maskedCount: number
 }
 
 export interface RenderResult {
@@ -154,22 +159,36 @@ export interface RenderResult {
   stats: ParcelStats | null
 }
 
+// Classes de la bande SCL de Sentinel-2 L2A exclues par le masque : sans donnée, saturé,
+// ombre de nuage, nuage (probabilité moyenne et haute), cirrus, neige
+const SCL_MASKED = new Set([0, 1, 3, 8, 9, 10, 11])
+
+export interface ParcelRaster {
+  width: number
+  height: number
+  /** Pixels RGBA, transparents hors de la parcelle */
+  rgba: Uint8ClampedArray
+  bounds: RenderResult['bounds']
+  stats: ParcelStats | null
+}
+
 const OUT_RES_M = 2.5
 const OUT_MAX_PX = 640
 // Au-delà, le serveur d'images est considéré comme injoignable
 const RENDER_TIMEOUT_MS = 60_000
 
 /**
- * Lit les COG Sentinel-2 autour de la parcelle et produit une image reprojetée en WGS84,
- * découpée au contour de la parcelle, prête à poser sur la carte.
+ * Lit les COG Sentinel-2 autour de la parcelle et calcule les pixels reprojetés en WGS84,
+ * découpés au contour de la parcelle. Sans navigateur : utilisé aussi par le serveur MCP.
  */
-export async function renderParcel(
+export async function rasterizeParcel(
   item: SentinelItem,
   geometry: GeoJSON.Polygon,
   index: IndexType,
   report: (pct: number, label: string) => void,
   isCancelled: () => boolean,
-): Promise<RenderResult | null> {
+  maskClouds = false,
+): Promise<ParcelRaster | null> {
   const secUrl = index === 'NDVI' ? item.redUrl : index === 'NDWI' ? item.greenUrl : item.swirUrl
   if (index === 'RGB' && !item.visualUrl) throw new Error("Pas d'image en couleurs pour cette date.")
   if (index !== 'RGB' && (!item.nirUrl || !secUrl)) throw new Error(`Bandes manquantes pour calculer le ${index} à cette date.`)
@@ -218,6 +237,24 @@ export async function renderParcel(
     bands = [nir, sec] as ArrayLike<number>[]
   }
 
+  let scl: ArrayLike<number> | null = null
+  if (maskClouds && index !== 'RGB') {
+    if (!item.sclUrl) throw new Error('Masque de nuages indisponible pour cette date.')
+    report(80, 'Lecture du masque de nuages…')
+    const sclImage = await (await fromUrl(item.sclUrl, undefined, signal)).getImage()
+    const sclWin = calcWindow(sclImage.getWidth(), sclImage.getHeight(), sclImage.getBoundingBox(), ring.map(c => toCRS(c[0], c[1])))
+    if (!sclWin) throw new Error('La parcelle est en dehors de cette image.')
+    // Rééchantillonnage au plus proche voisin (défaut de geotiff) : les classes restent entières
+    scl = (await sclImage.readRasters({
+      window: [sclWin.x0, sclWin.y0, sclWin.x1, sclWin.y1],
+      width: win.w,
+      height: win.h,
+      samples: [0],
+      signal,
+    }))[0] as ArrayLike<number>
+    if (!scl) throw new Error('Masque de nuages incomplet pour cette date.')
+  }
+
   if (isCancelled()) return null
   report(90, index === 'RGB' ? 'Assemblage…' : `Calcul du ${index}…`)
 
@@ -236,19 +273,15 @@ export async function renderParcel(
   const nw = toCRS(west, north), ne = toCRS(east, north)
   const sw = toCRS(west, south), se = toCRS(east, south)
 
-  const canvas = document.createElement('canvas')
-  canvas.width = W
-  canvas.height = H
-  const ctx = canvas.getContext('2d')
-  if (!ctx) throw new Error("Le navigateur ne permet pas d'afficher l'image.")
-  const img = ctx.createImageData(W, H)
-  const px = img.data
+  const px = new Uint8ClampedArray(W * H * 4)
 
   const stops = INDEX_INFO[index].stops
   const isUint16 = bands[0] instanceof Uint16Array
   const histogram = new Array<number>(HIST_BINS).fill(0)
   let sum = 0
+  let sumSq = 0
   let count = 0
+  let masked = 0
 
   for (let j = 0; j < H; j++) {
     const v = (j + 0.5) / H
@@ -287,6 +320,7 @@ export async function renderParcel(
         } else {
           const nir = bands[0][k], sec = bands[1][k]
           if (nir === 0 && sec === 0) continue
+          if (scl && SCL_MASKED.has(scl[k])) { masked++; continue }
           const val = index === 'NDWI' ? (sec - nir) / (sec + nir) : (nir - sec) / (nir + sec)
           const [r, g, b] = colorAt(val, stops)
           px[o] = r
@@ -294,6 +328,7 @@ export async function renderParcel(
           px[o + 2] = b
           px[o + 3] = 255
           sum += val
+          sumSq += val * val
           count++
           histogram[Math.min(HIST_BINS - 1, Math.max(0, Math.floor((val + 1) / 2 * HIST_BINS)))]++
         }
@@ -301,12 +336,33 @@ export async function renderParcel(
     }
   }
 
-  if (count === 0) throw new Error("Pas de données sur la parcelle à cette date.")
-  ctx.putImageData(img, 0, 0)
+  if (count === 0 && masked === 0) throw new Error("Pas de données sur la parcelle à cette date.")
 
+  const mean = sum / count
   return {
-    url: canvas.toDataURL('image/png'),
+    width: W,
+    height: H,
+    rgba: px,
     bounds: [[south, west], [north, east]],
-    stats: stops ? { mean: sum / count, histogram } : null,
+    stats: stops ? { mean, std: Math.sqrt(Math.max(0, sumSq / count - mean * mean)), histogram, pixelCount: count, maskedCount: masked } : null,
   }
+}
+
+/** Image de la parcelle prête à poser sur la carte (navigateur). */
+export async function renderParcel(
+  item: SentinelItem,
+  geometry: GeoJSON.Polygon,
+  index: IndexType,
+  report: (pct: number, label: string) => void,
+  isCancelled: () => boolean,
+): Promise<RenderResult | null> {
+  const raster = await rasterizeParcel(item, geometry, index, report, isCancelled)
+  if (!raster) return null
+  const canvas = document.createElement('canvas')
+  canvas.width = raster.width
+  canvas.height = raster.height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error("Le navigateur ne permet pas d'afficher l'image.")
+  ctx.putImageData(new ImageData(raster.rgba as Uint8ClampedArray<ArrayBuffer>, raster.width, raster.height), 0, 0)
+  return { url: canvas.toDataURL('image/png'), bounds: raster.bounds, stats: raster.stats }
 }
