@@ -8,7 +8,7 @@
 -- parcelles continue de fonctionner. Le renouvellement du jeton passe par le refresh token,
 -- rattaché à la vraie session : il n'est pas affecté.
 -- Comportement interne de Supabase Auth (internal/api/auth.go, maybeLoadUserOrSession), non
--- documenté : à revérifier avec le script de test après chaque mise à jour de Supabase.
+-- documenté : à revérifier avec scripts/oauth-e2e.mjs après chaque mise à jour de Supabase.
 --
 -- Après exécution : Authentication → Hooks → Customize Access Token (JWT) Claims hook,
 -- type Postgres, schéma public, fonction custom_access_token_hook.

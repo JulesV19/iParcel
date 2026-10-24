@@ -73,3 +73,20 @@ Seule la table `parcels` est utilisée (schéma dans la doc Obsidian), ainsi que
 `supabase/limites-parcels.sql` impose les limites côté base (nom de 80 caractères, géométrie valide de 1 000 sommets au plus, 200 parcelles par compte) : le navigateur ne fait que les refléter.
 
 `supabase/drop-hors-visualiseur.sql` supprime les tables des anciennes fonctionnalités (interventions, base produits e-phy, notes).
+
+---
+
+## Serveur MCP (applications connectées)
+
+Un assistant IA autorisé par l'utilisateur lit ses parcelles en lecture seule via `/api/mcp`, avec un jeton OAuth 2.1 délivré par Supabase. Les clients OAuth sont créés à la main dans Supabase (liste blanche, pas d'enregistrement dynamique) et leur identifiant renseigné dans les variables `MCP_CLIENT_ID_*` (voir `.env.local.example`). La page `/connecter` explique la connexion ; `/applications` liste les accès et permet de les retirer.
+
+Migrations, à exécuter dans cet ordre : `oauth-lecture-seule.sql`, `oauth-jeton-restreint.sql` (puis activer le hook dans Authentication → Hooks), `mcp-audit.sql` (puis la purge pg_cron indiquée à la fin du fichier), `oauth-revocation.sql`.
+
+Tests :
+
+```bash
+npm test                                     # tests unitaires (Vitest), sans réseau
+node scripts/oauth-e2e.mjs .env.local <client_id> https://i-parcel.vercel.app/api/mcp --revocation
+```
+
+Le second script joue le rôle d'une IA contre le vrai projet Supabase : à relancer après chaque mise à jour de Supabase, car le durcissement des jetons repose sur un comportement interne de Supabase Auth.

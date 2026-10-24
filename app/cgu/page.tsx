@@ -5,13 +5,14 @@ export const metadata = { title: "Conditions d'utilisation — iParcel" }
 
 export default function CGU() {
   return (
-    <LegalPage title="Conditions générales d'utilisation" updated="23 octobre 2026">
+    <LegalPage title="Conditions générales d'utilisation" updated="24 octobre 2026">
       <section className="mb-6">
         <h2 className="text-sm font-semibold text-ink mb-2">1. Présentation du service</h2>
         <p className="text-sm text-ink-2">
           iParcel est un service en ligne permettant aux utilisateurs de délimiter des parcelles
           agricoles sur une carte satellite, de consulter les images satellitaires Sentinel-2
-          correspondantes et la météo locale de chaque parcelle.
+          correspondantes et la météo locale de chaque parcelle. L’utilisateur peut aussi
+          autoriser un assistant IA à lire ces données pour rédiger des rapports.
           Le service est édité par Jules Videgrain à titre personnel.
         </p>
       </section>
@@ -48,17 +49,35 @@ export default function CGU() {
       </section>
 
       <section className="mb-6">
-        <h2 className="text-sm font-semibold text-ink mb-2">5. Limitation de responsabilité</h2>
+        <h2 className="text-sm font-semibold text-ink mb-2">5. Applications connectées</h2>
+        <p className="text-sm text-ink-2 mb-2">
+          L’utilisateur peut autoriser un assistant IA proposé sur la page{' '}
+          <Link href="/connecter" className="text-ink-2">Connecter une IA</Link> à lire ses parcelles,
+          leurs images satellite, leurs indices de végétation et leur météo. Cet accès est
+          facultatif, en lecture seule, et peut être retiré à tout moment depuis la page{' '}
+          <Link href="/applications" className="text-ink-2">Applications connectées</Link>.
+        </p>
+        <ul className="text-sm text-ink-2 space-y-1 list-disc list-inside">
+          <li>L’assistant est un service tiers, soumis aux conditions de son éditeur, que l’utilisateur accepte auprès de celui-ci.</li>
+          <li>Les données lues sont transmises à cet éditeur ; leur traitement par l’assistant ne relève pas d’iParcel.</li>
+          <li>Le nombre de lectures est limité par minute et par jour pour préserver le service.</li>
+          <li>L’éditeur d’iParcel peut retirer un assistant de la liste des applications acceptées, notamment pour des raisons de sécurité.</li>
+        </ul>
+      </section>
+
+      <section className="mb-6">
+        <h2 className="text-sm font-semibold text-ink mb-2">6. Limitation de responsabilité</h2>
         <p className="text-sm text-ink-2">
           iParcel est un outil d’aide à la visualisation. L’éditeur ne saurait être tenu
           responsable des décisions agronomiques, administratives ou commerciales prises sur
-          la base des informations affichées. Le service est fourni « tel quel », sans garantie
-          de disponibilité continue.
+          la base des informations affichées, ni du contenu des rapports et réponses rédigés par
+          un assistant IA, qui peuvent contenir des erreurs et doivent être vérifiés. Le service
+          est fourni « tel quel », sans garantie de disponibilité continue.
         </p>
       </section>
 
       <section className="mb-6">
-        <h2 className="text-sm font-semibold text-ink mb-2">6. Suppression du compte</h2>
+        <h2 className="text-sm font-semibold text-ink mb-2">7. Suppression du compte</h2>
         <p className="text-sm text-ink-2">
           L’utilisateur peut supprimer son compte à tout moment depuis le menu de son compte
           (« Supprimer mon compte »). Cette action supprime immédiatement et
@@ -67,7 +86,7 @@ export default function CGU() {
       </section>
 
       <section className="mb-6">
-        <h2 className="text-sm font-semibold text-ink mb-2">7. Données personnelles</h2>
+        <h2 className="text-sm font-semibold text-ink mb-2">8. Données personnelles</h2>
         <p className="text-sm text-ink-2">
           Le traitement des données personnelles est décrit dans la{' '}
           <Link href="/confidentialite" className="text-ink-2">politique de confidentialité</Link>.
@@ -75,7 +94,7 @@ export default function CGU() {
       </section>
 
       <section className="mb-6">
-        <h2 className="text-sm font-semibold text-ink mb-2">8. Modification des CGU</h2>
+        <h2 className="text-sm font-semibold text-ink mb-2">9. Modification des CGU</h2>
         <p className="text-sm text-ink-2">
           L’éditeur se réserve le droit de modifier les présentes CGU. Les utilisateurs
           seront informés par e-mail en cas de modification substantielle.
@@ -83,7 +102,7 @@ export default function CGU() {
       </section>
 
       <section>
-        <h2 className="text-sm font-semibold text-ink mb-2">9. Droit applicable</h2>
+        <h2 className="text-sm font-semibold text-ink mb-2">10. Droit applicable</h2>
         <p className="text-sm text-ink-2">
           Les présentes CGU sont soumises au droit français. En cas de litige,
           les parties s’efforceront de trouver une solution amiable avant tout recours judiciaire.

@@ -27,7 +27,11 @@ function toolJson(data: unknown): ToolResult {
 }
 
 // Mentions exigées par les licences des données, à reprendre dans les rapports
-const SENTINEL_SOURCE = 'Contient des données Copernicus Sentinel-2 modifiées (ESA), via Element 84 Earth Search'
+// La licence Copernicus demande l'année des données
+function sentinelSource(dates: string[]): string {
+  const years = [...new Set(dates.map(d => d.slice(0, 4)))].sort().join(', ')
+  return `Contient des données Copernicus Sentinel modifiées (${years}), via Element 84 Earth Search`
+}
 const WEATHER_SOURCE = 'Données météo : Open-Meteo.com (CC BY 4.0)'
 
 // Le serveur ne télécharge des images que depuis le stockage officiel des COG Sentinel-2,
@@ -175,7 +179,7 @@ export function buildServer(token: string, userId: string): McpServer {
     const parcel = await loadParcel(parcel_id)
     if (!parcel) return toolError(PARCEL_NOT_FOUND)
     const items = await fetchSentinelDates(parcel.geometry)
-    return toolJson({ parcel_id: parcel.id, images: items.map(imageSummary), source: SENTINEL_SOURCE })
+    return toolJson({ parcel_id: parcel.id, images: items.map(imageSummary), source: sentinelSource(items.map(i => i.date)) })
   }))
 
   server.registerTool('get_vegetation_index', {
@@ -230,7 +234,7 @@ export function buildServer(token: string, userId: string): McpServer {
           pct: stats.pixelCount ? round(n / stats.pixelCount * 100, 2) : 0,
         })).filter(b => b.pct > 0),
       },
-      source: SENTINEL_SOURCE,
+      source: sentinelSource([item.date]),
     })
   }))
 

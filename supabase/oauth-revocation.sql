@@ -7,7 +7,7 @@
 -- vérifie que cette session existe encore.
 -- Révocation (internal/api/oauthserver/handlers.go, UserRevokeOAuthGrant) : suppression des
 -- lignes de auth.sessions où oauth_client_id = l'application. Comportement interne de Supabase
--- Auth : à revérifier avec le script de test après chaque mise à jour de Supabase.
+-- Auth : à revérifier avec scripts/oauth-e2e.mjs après chaque mise à jour de Supabase.
 -- Les jetons délivrés avant cette migration n'ont pas de claim oauth_sid : ils sont refusés et
 -- l'application doit renouveler son jeton (refresh token) ou se reconnecter.
 -- À exécuter dans l'éditeur SQL Supabase, après oauth-jeton-restreint.sql et mcp-audit.sql.
