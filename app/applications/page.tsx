@@ -23,6 +23,7 @@ const TOOL_LABELS: Record<string, string> = {
   get_weather: 'Météo',
   list_satellite_images: 'Dates d’images satellite',
   get_vegetation_index: 'Indice de végétation',
+  get_vegetation_series: 'Évolution d’un indice',
 }
 
 const STATUS_LABELS: Record<AuditRow['status'], string> = {

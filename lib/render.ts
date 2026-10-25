@@ -188,13 +188,16 @@ export async function rasterizeParcel(
   report: (pct: number, label: string) => void,
   isCancelled: () => boolean,
   maskClouds = false,
+  /** Interruption anticipée, en plus du délai propre au calcul */
+  abort?: AbortSignal,
 ): Promise<ParcelRaster | null> {
   const secUrl = index === 'NDVI' ? item.redUrl : index === 'NDWI' ? item.greenUrl : item.swirUrl
   if (index === 'RGB' && !item.visualUrl) throw new Error("Pas d'image en couleurs pour cette date.")
   if (index !== 'RGB' && (!item.nirUrl || !secUrl)) throw new Error(`Bandes manquantes pour calculer le ${index} à cette date.`)
 
   const { fromUrl } = await import('geotiff')
-  const signal = AbortSignal.timeout(RENDER_TIMEOUT_MS)
+  const timeout = AbortSignal.timeout(RENDER_TIMEOUT_MS)
+  const signal = abort ? AbortSignal.any([timeout, abort]) : timeout
   const ring = geometry.coordinates[0]
 
   report(10, index === 'RGB' ? "Ouverture de l'image…" : 'Ouverture de la bande proche infrarouge…')
@@ -210,49 +213,38 @@ export async function rasterizeParcel(
   if (!win) throw new Error('La parcelle est en dehors de cette image.')
 
   let bands: ArrayLike<number>[]
+  let scl: ArrayLike<number> | null = null
   if (index === 'RGB') {
     report(35, 'Téléchargement des pixels…')
     const rasters = await image.readRasters({ window: [win.x0, win.y0, win.x1, win.y1], samples: [0, 1, 2], signal })
     bands = [rasters[0], rasters[1], rasters[2]] as ArrayLike<number>[]
     if (bands.some(b => !b)) throw new Error("L'image en couleurs est incomplète.")
   } else {
-    const secLabel = index === 'NDVI' ? 'rouge' : index === 'NDWI' ? 'verte' : 'infrarouge moyen'
-    report(30, 'Téléchargement de la bande proche infrarouge…')
-    const nir = (await image.readRasters({ window: [win.x0, win.y0, win.x1, win.y1], width: win.w, height: win.h, samples: [0], signal }))[0]
-
-    report(55, `Ouverture de la bande ${secLabel}…`)
-    const secImage = await (await fromUrl(secUrl, undefined, signal)).getImage()
-    const secWin = calcWindow(secImage.getWidth(), secImage.getHeight(), secImage.getBoundingBox(), ring.map(c => toCRS(c[0], c[1])))
-    if (!secWin) throw new Error('La parcelle est en dehors de cette image.')
-
-    report(70, `Téléchargement de la bande ${secLabel}…`)
-    const sec = (await secImage.readRasters({
-      window: [secWin.x0, secWin.y0, secWin.x1, secWin.y1],
-      width: win.w,
-      height: win.h,
-      samples: [0],
-      signal,
-    }))[0]
-    if (!nir || !sec) throw new Error('Bandes spectrales incomplètes pour cette date.')
-    bands = [nir, sec] as ArrayLike<number>[]
-  }
-
-  let scl: ArrayLike<number> | null = null
-  if (maskClouds && index !== 'RGB') {
-    if (!item.sclUrl) throw new Error('Masque de nuages indisponible pour cette date.')
-    report(80, 'Lecture du masque de nuages…')
-    const sclImage = await (await fromUrl(item.sclUrl, undefined, signal)).getImage()
-    const sclWin = calcWindow(sclImage.getWidth(), sclImage.getHeight(), sclImage.getBoundingBox(), ring.map(c => toCRS(c[0], c[1])))
-    if (!sclWin) throw new Error('La parcelle est en dehors de cette image.')
-    // Rééchantillonnage au plus proche voisin (défaut de geotiff) : les classes restent entières
-    scl = (await sclImage.readRasters({
-      window: [sclWin.x0, sclWin.y0, sclWin.x1, sclWin.y1],
-      width: win.w,
-      height: win.h,
-      samples: [0],
-      signal,
-    }))[0] as ArrayLike<number>
-    if (!scl) throw new Error('Masque de nuages incomplet pour cette date.')
+    // Bandes lues en parallèle : l'attente réseau domine (3 fichiers distants)
+    type Image = Awaited<ReturnType<typeof tiff.getImage>>
+    const open = async (url: string) => (await fromUrl(url, undefined, signal)).getImage()
+    const readBand = async (opening: Promise<Image>): Promise<ArrayLike<number>> => {
+      const img = await opening
+      const w = calcWindow(img.getWidth(), img.getHeight(), img.getBoundingBox(), ring.map(c => toCRS(c[0], c[1])))
+      if (!w) throw new Error('La parcelle est en dehors de cette image.')
+      // Rééchantillonnage au plus proche voisin (défaut de geotiff) : les classes SCL restent entières
+      const band = (await img.readRasters({ window: [w.x0, w.y0, w.x1, w.y1], width: win.w, height: win.h, samples: [0], signal }))[0]
+      done++
+      report(30 + Math.round(55 * done / total), `Téléchargement des bandes (${done}/${total})…`)
+      return band as ArrayLike<number>
+    }
+    if (maskClouds && !item.sclUrl) throw new Error('Masque de nuages indisponible pour cette date.')
+    const total = maskClouds ? 3 : 2
+    let done = 0
+    report(30, `Téléchargement des bandes (0/${total})…`)
+    const [nir, sec, mask] = await Promise.all([
+      readBand(Promise.resolve(image)),
+      readBand(open(secUrl)),
+      maskClouds ? readBand(open(item.sclUrl)) : null,
+    ])
+    if (!nir || !sec || (maskClouds && !mask)) throw new Error('Bandes spectrales incomplètes pour cette date.')
+    bands = [nir, sec]
+    scl = mask
   }
 
   if (isCancelled()) return null

@@ -24,9 +24,11 @@ export default function Confidentialite() {
             <strong>Applications connectées</strong>, seulement si vous en autorisez une — l’application
             autorisée et la date de l’autorisation ; la session de connexion de l’application (adresse IP
             et logiciel à l’origine de la demande, dates) ; un journal d’activité. Le journal indique, pour
-            chaque lecture, la date, l’application, l’outil utilisé, la parcelle concernée et le résultat.
-            Il ne contient ni adresse IP, ni les données renvoyées, ni le contenu de vos conversations
-            avec l’assistant.
+            chaque lecture, la date, l’application, l’outil utilisé, la parcelle concernée, le résultat et
+            le temps de calcul consommé. Il ne contient ni adresse IP, ni les données renvoyées, ni le
+            contenu de vos conversations avec l’assistant. Les indices de végétation calculés pour
+            l’application (moyenne, écart-type et répartition des valeurs, par parcelle et par date)
+            sont gardés en cache pour ne pas refaire le même calcul.
           </li>
         </ul>
         <p className="text-sm text-ink-2 mt-2">
@@ -189,7 +191,8 @@ export default function Confidentialite() {
         </p>
         <p className="text-sm text-ink-2 mt-2">
           Applications connectées : l’autorisation et la session sont conservées jusqu’à ce que
-          vous retiriez l’accès. Chaque entrée du journal d’activité est effacée au bout d’un an.
+          vous retiriez l’accès. Chaque entrée du journal d’activité est effacée au bout d’un an, chaque
+          indice gardé en cache au bout de 90 jours, ou avant avec la parcelle ou le compte.
         </p>
       </section>
 

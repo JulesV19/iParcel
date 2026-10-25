@@ -92,3 +92,47 @@ export async function fetchWeather(lat: number, lon: number): Promise<WeatherDat
     },
   }
 }
+
+export interface HistoryDay {
+  date: string
+  tempMax: number | null
+  tempMin: number | null
+  precipMm: number | null
+  et0Mm: number | null
+  weatherCode: number | null
+  windSpeedMax: number | null
+}
+
+/**
+ * Relevés journaliers passés (archive Open-Meteo, réanalyses), du start au end inclus, dans le
+ * fuseau de la parcelle. Une valeur manquante reste null : pas de 0 qui fausserait un cumul.
+ */
+export async function fetchWeatherHistory(lat: number, lon: number, start: string, end: string): Promise<HistoryDay[]> {
+  const params = new URLSearchParams({
+    latitude: lat.toFixed(5),
+    longitude: lon.toFixed(5),
+    daily: 'temperature_2m_max,temperature_2m_min,precipitation_sum,et0_fao_evapotranspiration,weather_code,wind_speed_10m_max',
+    start_date: start,
+    end_date: end,
+    timezone: 'auto',
+  })
+  const res = await fetch(`https://archive-api.open-meteo.com/v1/archive?${params}`, { signal: AbortSignal.timeout(15_000) })
+  if (!res.ok) throw new Error(`Open-Meteo archive ${res.status}`)
+  const json = await res.json()
+  const d = json.daily
+  if (!Array.isArray(d?.time)) throw new Error('Réponse Open-Meteo invalide')
+
+  const num = (series: unknown, i: number, digits: number): number | null => {
+    const v = Array.isArray(series) ? series[i] : null
+    return typeof v === 'number' && isFinite(v) ? Math.round(v * 10 ** digits) / 10 ** digits : null
+  }
+  return (d.time as string[]).map((date, i) => ({
+    date,
+    tempMax: num(d.temperature_2m_max, i, 1),
+    tempMin: num(d.temperature_2m_min, i, 1),
+    precipMm: num(d.precipitation_sum, i, 1),
+    et0Mm: num(d.et0_fao_evapotranspiration, i, 1),
+    weatherCode: num(d.weather_code, i, 0),
+    windSpeedMax: num(d.wind_speed_10m_max, i, 0),
+  }))
+}

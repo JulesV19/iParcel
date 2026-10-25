@@ -20,7 +20,7 @@ cp .env.local.example .env.local
 npm run dev
 ```
 
-Base de données : exécuter les scripts de `supabase/` dans cet ordre : `schema-parcels`, `limites-parcels`, `oauth-lecture-seule`, `oauth-jeton-restreint`, `mcp-audit`, `oauth-revocation`, `purge-audit-auth`. Les réglages à faire ensuite dans le dashboard sont indiqués en tête de chaque fichier.
+Base de données : exécuter les scripts de `supabase/` dans cet ordre : `schema-parcels`, `limites-parcels`, `oauth-lecture-seule`, `oauth-jeton-restreint`, `mcp-audit`, `oauth-revocation`, `mcp-budget`, `purge-audit-auth`. Les réglages à faire ensuite dans le dashboard sont indiqués en tête de chaque fichier.
 
 ## Tests
 
