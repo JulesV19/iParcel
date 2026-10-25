@@ -1,6 +1,6 @@
 # iParcel
 
-Suivi de parcelles agricoles : dessin sur fond IGN (photos aériennes, cadastre), images Sentinel-2, indices NDVI / NDWI / NDMI et météo locale.
+Suivi de parcelles agricoles : dessin sur fond IGN (photos aériennes) ou choix parmi les parcelles déclarées à la PAC (RPG), images Sentinel-2, indices NDVI / NDWI / NDMI et météo locale.
 
 https://i-parcel.vercel.app
 

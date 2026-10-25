@@ -5,7 +5,7 @@ export const metadata = { title: "Conditions d'utilisation — iParcel" }
 
 export default function CGU() {
   return (
-    <LegalPage title="Conditions générales d'utilisation" updated="24 octobre 2026">
+    <LegalPage title="Conditions générales d'utilisation" updated="25 octobre 2026">
       <section className="mb-6">
         <h2 className="text-sm font-semibold text-ink mb-2">1. Présentation du service</h2>
         <p className="text-sm text-ink-2">
@@ -43,10 +43,11 @@ export default function CGU() {
         <p className="text-sm text-ink-2">
           Les images satellitaires affichées sont issues du programme Copernicus (ESA),
           données Sentinel-2, distribuées via l’API publique Element 84 Earth Search. Le fond de
-          carte, le plan cadastral et les noms de lieux proviennent de l’IGN. Ces données sont
-          fournies à titre indicatif. iParcel ne garantit pas leur exhaustivité, leur actualité
-          ou leur précision géométrique. Le plan cadastral n’a pas de valeur juridique et ne
-          permet pas d’établir les limites d’une propriété.
+          carte, les noms de lieux et les contours des parcelles déclarées à la PAC (registre
+          parcellaire graphique) proviennent de l’IGN. Ces données sont fournies à titre
+          indicatif. iParcel ne garantit pas leur exhaustivité, leur actualité ou leur précision
+          géométrique. Les contours du registre parcellaire graphique n’ont pas de valeur
+          juridique et ne permettent pas d’établir les limites d’une propriété.
         </p>
       </section>
 

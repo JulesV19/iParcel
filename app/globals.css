@@ -234,9 +234,6 @@ h1, h2, h3 {
 .leaflet-control-attribution a { color: inherit; }
 .leaflet-control-attribution .leaflet-attribution-flag { display: none !important; }
 
-/* Filtre SVG défini dans ParcelMap */
-.cadastre-tiles { filter: url(#cadastre-lines); }
-
 .parcel-label.leaflet-tooltip {
   background: transparent;
   border: 0;
@@ -313,3 +310,6 @@ h1, h2, h3 {
   border: 3px solid #fff;
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
 }
+
+/* Choix d'une parcelle RPG : les parcelles de l'utilisateur laissent passer les clics */
+.leaflet-container.picking .parcel-shape { pointer-events: none; }

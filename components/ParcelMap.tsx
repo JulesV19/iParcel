@@ -6,6 +6,7 @@ import 'leaflet/dist/leaflet.css'
 import 'leaflet-draw/dist/leaflet.draw.css'
 import 'leaflet-draw'
 import type { Parcel } from '@/lib/types'
+import { fetchRpgParcels, pickPolygon, RPG_MIN_ZOOM, type RpgFeature, type RpgPick } from '@/lib/rpg'
 
 const SIGNAL = '#f5d04a'
 const HALO = '#0b0f0c'
@@ -15,9 +16,14 @@ const LABEL_MIN_ZOOM = 13
 // Géoplateforme IGN (WMTS, sans clé, Licence Ouverte Etalab 2.0) : couverture France
 const IGN_WMTS = 'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&STYLE=normal&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}'
 const ignLayer = (layer: string, format: 'image/jpeg' | 'image/png') => `${IGN_WMTS}&LAYER=${layer}&FORMAT=${format}`
-const IGN_ATTRIBUTION = 'Images aériennes, cadastre et noms © <a href="https://www.ign.fr" target="_blank" rel="noopener noreferrer">IGN</a> – <a href="https://www.etalab.gouv.fr/licence-ouverte-open-licence/" target="_blank" rel="noopener noreferrer">Licence Ouverte</a>'
-// En dessous, le parcellaire est trop dense pour être lisible
-const CADASTRE_MIN_ZOOM = 15
+const IGN_ATTRIBUTION = 'Images aériennes et noms © <a href="https://www.ign.fr" target="_blank" rel="noopener noreferrer">IGN</a> – <a href="https://www.etalab.gouv.fr/licence-ouverte-open-licence/" target="_blank" rel="noopener noreferrer">Licence Ouverte</a>'
+const RPG_ATTRIBUTION = 'Registre parcellaire graphique : ASP, <a href="https://geoservices.ign.fr/rpg" target="_blank" rel="noopener noreferrer">IGN</a>'
+
+const rpgStyle = (hover: boolean): L.PathOptions => hover
+  ? { color: '#fff', weight: 2.5, opacity: 1, fillColor: '#fff', fillOpacity: 0.18 }
+  : { color: '#fff', weight: 1.2, opacity: 0.85, fillColor: '#fff', fillOpacity: 0 }
+
+export type RpgState = 'zoom' | 'loading' | 'ready' | 'dense' | 'error'
 
 L.drawLocal.draw.handlers.polygon.tooltip = {
   start: 'Cliquez pour placer le premier sommet',
@@ -25,6 +31,12 @@ L.drawLocal.draw.handlers.polygon.tooltip = {
   end: 'Cliquez sur le premier sommet pour fermer',
 }
 L.drawLocal.draw.handlers.polyline.error = '<strong>Les côtés ne peuvent pas se croiser</strong>'
+
+const vertex = L.divIcon({ className: 'draw-vertex', iconSize: [14, 14] })
+const touchVertex = L.divIcon({ className: 'draw-vertex', iconSize: [22, 22] })
+
+// leaflet-draw ajoute un gestionnaire d'édition à chaque polygone, absent de ses types
+const editing = (poly: L.Polygon) => (poly as L.Polygon & { editing: L.Handler }).editing
 
 export interface MapInsets { left: number; bottom: number }
 
@@ -39,6 +51,9 @@ export interface MapApi {
   undoVertex(): void
   finishDraw(): void
   cancelDraw(): void
+  startAdjust(geometry: GeoJSON.Polygon): void
+  finishAdjust(): GeoJSON.Polygon | null
+  cancelAdjust(): void
 }
 
 interface Props {
@@ -49,6 +64,8 @@ interface Props {
   hoveredId: string | null
   overlay: { url: string; bounds: L.LatLngBoundsLiteral; opacity: number } | null
   draft: GeoJSON.Polygon | null
+  /** Contours RPG affichés et cliquables (choix d'une parcelle déclarée à la PAC) */
+  rpg: boolean
   insets: MapInsets
   onReady: (api: MapApi) => void
   onSelect: (id: string) => void
@@ -57,6 +74,9 @@ interface Props {
   onDrawProgress: (vertices: [number, number][]) => void
   onDrawComplete: (geometry: GeoJSON.Polygon) => void
   onDrawCancel: () => void
+  onRpgState: (state: RpgState) => void
+  /** null : clic hors de toute parcelle RPG */
+  onRpgPick: (pick: RpgPick | null) => void
 }
 
 function toLatLngs(geometry: GeoJSON.Polygon): L.LatLngTuple[] {
@@ -86,6 +106,7 @@ export default function ParcelMap(props: Props) {
   const overlayRef = useRef<L.ImageOverlay | null>(null)
   const draftRef = useRef<L.Polygon | null>(null)
   const drawRef = useRef<L.Draw.Polygon | null>(null)
+  const adjustRef = useRef<L.Polygon | null>(null)
   const drawCompletedRef = useRef(false)
   const locateRef = useRef<L.Marker | null>(null)
   // Dernières props, lues par les gestionnaires Leaflet créés une seule fois
@@ -113,19 +134,13 @@ export default function ParcelMap(props: Props) {
       attribution: IGN_ATTRIBUTION,
       maxZoom: 19,
     }).addTo(map)
-    // Contours seuls, en blanc : voir le filtre #cadastre-lines plus bas
-    L.tileLayer(ignLayer('CADASTRALPARCELS.PARCELLAIRE_EXPRESS', 'image/png'), {
-      minZoom: CADASTRE_MIN_ZOOM,
-      maxZoom: 19,
-      opacity: 0.7,
-      className: 'cadastre-tiles',
-    }).addTo(map)
     L.tileLayer(ignLayer('GEOGRAPHICALNAMES.NAMES', 'image/png'), {
       maxNativeZoom: 18,
       maxZoom: 19,
     }).addTo(map)
 
     map.createPane('sentinel').style.zIndex = '390'
+    map.createPane('rpg').style.zIndex = '380'
 
     const syncLabels = () => {
       containerRef.current?.classList.toggle('show-labels', map.getZoom() >= LABEL_MIN_ZOOM)
@@ -202,8 +217,6 @@ export default function ParcelMap(props: Props) {
       startDraw() {
         drawRef.current?.disable()
         drawCompletedRef.current = false
-        const vertex = L.divIcon({ className: 'draw-vertex', iconSize: [14, 14] })
-        const touchVertex = L.divIcon({ className: 'draw-vertex', iconSize: [22, 22] })
         const handler = new L.Draw.Polygon(map as L.DrawMap, {
           allowIntersection: false,
           showArea: false,
@@ -228,6 +241,32 @@ export default function ParcelMap(props: Props) {
       cancelDraw() {
         drawRef.current?.disable()
       },
+      startAdjust(geometry) {
+        api.cancelAdjust()
+        const options: L.PolylineOptions & { poly: L.EditToolbar.EditPolyOptions } = {
+          color: SIGNAL, weight: 2.5, opacity: 1, fillColor: SIGNAL, fillOpacity: 0.18,
+          poly: { allowIntersection: false, icon: vertex, touchIcon: touchVertex, drawError: { color: '#e5533d', timeout: 1600 } },
+        }
+        const poly = L.polygon(toLatLngs(geometry), options).addTo(map)
+        editing(poly).enable()
+        adjustRef.current = poly
+        containerRef.current?.classList.add('drawing')
+      },
+      finishAdjust() {
+        const poly = adjustRef.current
+        if (!poly) return null
+        const geometry = poly.toGeoJSON().geometry as GeoJSON.Polygon
+        api.cancelAdjust()
+        return geometry
+      },
+      cancelAdjust() {
+        const poly = adjustRef.current
+        if (!poly) return
+        editing(poly).disable()
+        poly.remove()
+        adjustRef.current = null
+        containerRef.current?.classList.remove('drawing')
+      },
     }
     latest.current.onReady(api)
 
@@ -238,6 +277,7 @@ export default function ParcelMap(props: Props) {
       layers.clear()
       overlayRef.current = null
       draftRef.current = null
+      adjustRef.current = null
       locateRef.current = null
     }
   }, [])
@@ -265,7 +305,7 @@ export default function ParcelMap(props: Props) {
       }
       const latlngs = toLatLngs(parcel.geometry)
       const halo = L.polygon(latlngs, { color: HALO, weight: 5, opacity: 0.35, fill: false, interactive: false }).addTo(map)
-      const shape = L.polygon(latlngs, parcelStyle('idle'))
+      const shape = L.polygon(latlngs, { ...parcelStyle('idle'), className: 'parcel-shape' })
         .bindTooltip(labelNode(parcel.name), { permanent: true, direction: 'center', className: 'parcel-label', interactive: false })
         .on('click', () => latest.current.onSelect(parcel.id))
         .on('mouseover', () => latest.current.onHover(parcel.id))
@@ -311,6 +351,88 @@ export default function ParcelMap(props: Props) {
     }
   }, [props.overlay])
 
+  // ─── Parcelles déclarées à la PAC (RPG) ────────────────────
+  useEffect(() => {
+    const map = mapRef.current
+    const container = containerRef.current
+    if (!map || !container || !props.rpg) return
+    container.classList.add('picking')
+
+    let state: RpgState | null = null
+    const report = (s: RpgState) => {
+      state = s
+      latest.current.onRpgState(s)
+    }
+
+    let hovered: L.Path | null = null
+    // Options de tracé transmises à chaque polygone créé, absentes des types de L.geoJSON
+    const options: L.GeoJSONOptions<RpgFeature['properties']> & L.PathOptions = {
+      renderer: L.canvas({ pane: 'rpg', padding: 0.3 }),
+      style: rpgStyle(false),
+      // Le clic sur une parcelle ne doit pas aussi compter comme un clic dans le vide
+      bubblingMouseEvents: false,
+      attribution: RPG_ATTRIBUTION,
+      onEachFeature: (feature, l) => {
+        const path = l as L.Path
+        path.on('mouseover', () => { hovered = path; path.setStyle(rpgStyle(true)) })
+        path.on('mouseout', () => { if (hovered === path) hovered = null; path.setStyle(rpgStyle(false)) })
+        path.on('click', e => {
+          const { lng, lat } = (e as L.LeafletMouseEvent).latlng
+          const geometry = feature.geometry as RpgFeature['geometry']
+          latest.current.onRpgPick({ geometry: pickPolygon(geometry, [lng, lat]), culture: feature.properties.code_cultu ?? null })
+        })
+      },
+    }
+    const layer = L.geoJSON(undefined, options).addTo(map)
+
+    // Emprise déjà chargée, avec une marge : un petit déplacement ne relance pas de requête
+    let loaded: L.LatLngBounds | null = null
+    let ctrl: AbortController | null = null
+    const load = () => {
+      if (map.getZoom() < RPG_MIN_ZOOM) {
+        ctrl?.abort()
+        layer.clearLayers()
+        loaded = null
+        report('zoom')
+        return
+      }
+      if (loaded?.contains(map.getBounds())) return
+      ctrl?.abort()
+      const c = ctrl = new AbortController()
+      const target = map.getBounds().pad(0.3)
+      report('loading')
+      fetchRpgParcels({ south: target.getSouth(), west: target.getWest(), north: target.getNorth(), east: target.getEast() }, c.signal)
+        .then(({ features, truncated }) => {
+          if (c.signal.aborted) return
+          hovered = null
+          layer.clearLayers()
+          layer.addData({ type: 'FeatureCollection', features } as GeoJSON.FeatureCollection)
+          // Zone incomplète : on recharge au prochain déplacement
+          loaded = truncated ? null : target
+          report(truncated ? 'dense' : 'ready')
+        })
+        .catch(e => {
+          if (c.signal.aborted) return
+          console.error('RPG :', e)
+          report('error')
+        })
+    }
+    const onMapClick = () => {
+      if (state === 'ready' || state === 'dense') latest.current.onRpgPick(null)
+    }
+
+    map.on('moveend', load)
+    map.on('click', onMapClick)
+    load()
+    return () => {
+      map.off('moveend', load)
+      map.off('click', onMapClick)
+      ctrl?.abort()
+      layer.remove()
+      container.classList.remove('picking')
+    }
+  }, [props.rpg])
+
   // ─── Parcelle dessinée en attente de nom ───────────────────
   useEffect(() => {
     const map = mapRef.current
@@ -323,21 +445,5 @@ export default function ParcelMap(props: Props) {
       : null
   }, [props.draft])
 
-  return (
-    <>
-      <div ref={containerRef} className="absolute inset-0" />
-      {/* Le cadastre IGN remplit chaque parcelle d'orange à 20 % et trace ses limites en orange,
-          confondables avec les parcelles de l'utilisateur. Gris = 2 × (1 − vert) : traits orange et
-          numéros violets deviennent blancs, leur halo blanc devient noir ; le remplissage
-          (alpha faible) disparaît */}
-      <svg aria-hidden width="0" height="0" className="absolute">
-        <filter id="cadastre-lines" colorInterpolationFilters="sRGB">
-          <feColorMatrix type="matrix" values="0 -2 0 0 2  0 -2 0 0 2  0 -2 0 0 2  0 0 0 1 0" />
-          <feComponentTransfer>
-            <feFuncA type="table" tableValues="0 0 0.6 1" />
-          </feComponentTransfer>
-        </filter>
-      </svg>
-    </>
-  )
+  return <div ref={containerRef} className="absolute inset-0" />
 }

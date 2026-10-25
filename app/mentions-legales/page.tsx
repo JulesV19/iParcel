@@ -46,9 +46,9 @@ export default function MentionsLegales() {
           Copernicus Sentinel modifiées.
         </p>
         <p className="text-sm text-ink-2 mb-2">
-          Le fond de carte (photographies aériennes), le plan cadastral (Parcellaire Express) et
-          les noms de lieux proviennent de la Géoplateforme de l’IGN, qui fournit aussi la recherche
-          de lieux, sous{' '}
+          Le fond de carte (photographies aériennes) et les noms de lieux proviennent de la Géoplateforme de l’IGN, qui fournit aussi la recherche
+          de lieux et les contours des parcelles déclarées à la PAC (registre parcellaire graphique,
+          produit par l’Agence de services et de paiement), sous{' '}
           <a href="https://www.etalab.gouv.fr/licence-ouverte-open-licence/" className="text-ink-2" target="_blank" rel="noopener noreferrer">Licence Ouverte Etalab 2.0</a>.
         </p>
         <p className="text-sm text-ink-2">
@@ -64,9 +64,9 @@ export default function MentionsLegales() {
         <p className="text-sm text-ink-2">
           iParcel est un outil de consultation d’images satellitaires à titre indicatif.
           L’éditeur ne saurait être tenu responsable d’une utilisation agronomique ou
-          décisionnelle fondée sur les données affichées. Le plan cadastral n’a pas de valeur
-          juridique : il ne permet pas d’établir les limites d’une propriété, que seul un bornage
-          par un géomètre-expert fixe.
+          décisionnelle fondée sur les données affichées. Les contours du registre parcellaire
+          graphique n’ont pas de valeur juridique : ils ne permettent pas d’établir les limites
+          d’une propriété, que seul un bornage par un géomètre-expert fixe.
         </p>
       </section>
     </LegalPage>

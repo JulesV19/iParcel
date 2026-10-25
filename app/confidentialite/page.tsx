@@ -5,7 +5,7 @@ export const metadata = { title: 'Politique de confidentialité — iParcel' }
 
 export default function Confidentialite() {
   return (
-    <LegalPage title="Politique de confidentialité" updated="24 octobre 2026">
+    <LegalPage title="Politique de confidentialité" updated="25 octobre 2026">
       <section className="mb-6">
         <h2 className="text-sm font-semibold text-ink mb-2">Responsable du traitement</h2>
         <p className="text-sm text-ink-2">
@@ -169,7 +169,8 @@ export default function Confidentialite() {
           </div>
           <div>
             <strong>IGN, Géoplateforme</strong> (France) — fond de carte (photographies aériennes,
-            cadastre, noms de lieux) et recherche de communes et d’adresses. Votre navigateur
+            noms de lieux), contours des parcelles déclarées à la PAC (registre parcellaire
+            graphique) et recherche de communes et d’adresses. Votre navigateur
             transmet votre adresse IP, la zone affichée et le texte saisi dans la recherche, sans
             identifiant utilisateur.{' '}
             <a href="https://geoservices.ign.fr/cgu-licences" className="text-ink-2" target="_blank" rel="noopener noreferrer">Conditions IGN</a>

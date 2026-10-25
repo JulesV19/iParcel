@@ -4,15 +4,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import {
-  ArrowLeft, Check, ChevronRight, CloudSun, Leaf, Loader2, LocateFixed, Minus, Pencil, Plus, Satellite, Trash2, Undo2, X, ZoomIn,
+  ArrowLeft, Check, ChevronRight, CloudSun, Leaf, Loader2, LocateFixed, Minus, MousePointerClick, Pencil, Plus, Satellite, Spline, Trash2, Undo2, X, ZoomIn,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { fetchSentinelDates, formatDate, formatShortDate, pickDefaultItem, type SentinelItem } from '@/lib/stac'
 import { fetchWeather, parcelCentroid, type WeatherData } from '@/lib/weather'
 import { formatArea, formatCoords, formatTotalArea, parcelAreaHa, ringAreaHa } from '@/lib/geo'
 import { renderParcel, gradientCss, INDEX_INFO, type IndexType, type RenderResult } from '@/lib/render'
+import { cultureLabels, RPG_EDITION, type RpgPick } from '@/lib/rpg'
 import type { Parcel } from '@/lib/types'
-import type { MapApi, MapInsets } from '@/components/ParcelMap'
+import type { MapApi, MapInsets, RpgState } from '@/components/ParcelMap'
 import Sheet, { useIsDesktop, type SheetSnap } from '@/components/Sheet'
 import { ParcelShape, Wordmark } from '@/components/Brand'
 import { WeatherIcon, WeatherPanel } from '@/components/Weather'
@@ -29,6 +30,10 @@ const ParcelMap = dynamic(() => import('@/components/ParcelMap'), {
 type Mode =
   | { kind: 'browse' }
   | { kind: 'parcel'; id: string }
+  | { kind: 'choose' }
+  /** miss : dernier clic hors de toute parcelle RPG */
+  | { kind: 'pick'; pick: RpgPick | null; miss: boolean }
+  | { kind: 'adjust'; pick: RpgPick }
   | { kind: 'draw' }
   | { kind: 'name'; geometry: GeoJSON.Polygon }
 
@@ -37,6 +42,8 @@ type Toast = { id: number; text: string; tone: 'ok' | 'error' }
 // En dessous, un clic couvre plusieurs dizaines de mètres : tracé imprécis
 const DRAW_MIN_ZOOM = 14
 const LARGE_PARCEL_HA = 300
+// Sommets par parcelle au plus (supabase/limites-parcels.sql)
+const MAX_VERTICES = 1000
 
 const byName = (a: Parcel, b: Parcel) => a.name.localeCompare(b.name, 'fr', { numeric: true })
 
@@ -57,6 +64,51 @@ function MetaRow({ label, value }: { label: string; value: string }) {
       <dt className="text-ink-3">{label}</dt>
       <dd className="font-medium tabular-nums text-right">{value}</dd>
     </div>
+  )
+}
+
+function Steps({ steps, current }: { steps: { title: string; text: string }[]; current: number }) {
+  return (
+    <ol className="flex flex-col gap-2.5">
+      {steps.map((s, i) => (
+        <li key={s.title} className={`flex gap-3 transition-opacity ${i === current ? '' : 'opacity-45'}`}>
+          <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-bold ${i < current ? 'bg-ink text-paper' : i === current ? 'bg-signal text-on-signal' : 'bg-paper-3 text-ink-2'}`}>
+            {i < current ? <Check size={13} strokeWidth={3} aria-hidden /> : i + 1}
+          </span>
+          <span className="pt-0.5">
+            <span className="block text-sm font-semibold">{s.title}</span>
+            {i === current && <span className="block text-[13px] leading-snug text-ink-2">{s.text}</span>}
+          </span>
+        </li>
+      ))}
+    </ol>
+  )
+}
+
+function ChoiceCard({ icon: Icon, title, badge, text, onClick }: {
+  icon: React.ComponentType<{ size?: number; 'aria-hidden'?: boolean }>
+  title: string
+  badge?: string
+  text: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="group flex w-full items-start gap-3.5 rounded-2xl border border-line px-4 py-3.5 text-left transition-colors hover:border-ink-3 hover:bg-paper-2"
+    >
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-paper-2 transition-colors group-hover:bg-paper-3">
+        <Icon size={19} aria-hidden />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          <span className="text-[15px] font-semibold">{title}</span>
+          {badge && <span className="rounded-full bg-signal/30 px-2 py-px text-[11px] font-semibold text-signal-ink">{badge}</span>}
+        </span>
+        <span className="mt-0.5 block text-[13px] leading-snug text-ink-2">{text}</span>
+      </span>
+      <ChevronRight size={16} className="mt-3 shrink-0 text-ink-3 transition-transform group-hover:translate-x-0.5" aria-hidden />
+    </button>
   )
 }
 
@@ -99,6 +151,8 @@ export default function Home() {
   const [draftName, setDraftName] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const [rpgState, setRpgState] = useState<RpgState>('zoom')
+  const [cultures, setCultures] = useState<Record<string, string>>({})
 
   const mapApi = useRef<MapApi | null>(null)
   const [mapReady, setMapReady] = useState(false)
@@ -250,6 +304,37 @@ export default function Home() {
     setConfirmDelete(false)
   }, [])
 
+  function startCreate() {
+    setMode({ kind: 'choose' })
+    setSnap('peek')
+    cultureLabels().then(setCultures)
+  }
+
+  function startPick() {
+    setMode({ kind: 'pick', pick: null, miss: false })
+    setSnap('peek')
+  }
+
+  function confirmPick() {
+    if (mode.kind === 'pick' && mode.pick) setMode({ kind: 'name', geometry: mode.pick.geometry })
+  }
+
+  function startAdjust() {
+    if (mode.kind !== 'pick' || !mode.pick) return
+    setMode({ kind: 'adjust', pick: mode.pick })
+    mapApi.current?.startAdjust(mode.pick.geometry)
+  }
+
+  function finishAdjust() {
+    const geometry = mapApi.current?.finishAdjust()
+    if (geometry) setMode({ kind: 'name', geometry })
+  }
+
+  const cancelAdjust = useCallback(() => {
+    mapApi.current?.cancelAdjust()
+    setMode(m => m.kind === 'adjust' ? { kind: 'pick', pick: m.pick, miss: false } : m)
+  }, [])
+
   function startDraw() {
     setMode({ kind: 'draw' })
     setVertices([])
@@ -259,6 +344,7 @@ export default function Home() {
 
   const cancelDraw = useCallback(() => {
     mapApi.current?.cancelDraw()
+    mapApi.current?.cancelAdjust()
     setMode({ kind: 'browse' })
     setVertices([])
     setDraftName('')
@@ -279,14 +365,15 @@ export default function Home() {
       if (t.closest('input, textarea, [contenteditable]')) return
       if (e.key === 'Escape') {
         if (mode.kind === 'parcel') backToList()
-        else if (mode.kind === 'name') cancelDraw()
+        else if (mode.kind === 'name' || mode.kind === 'choose' || mode.kind === 'pick') cancelDraw()
+        else if (mode.kind === 'adjust') cancelAdjust()
       }
       if (mode.kind === 'parcel' && e.key === 'ArrowLeft') stepDate(-1)
       if (mode.kind === 'parcel' && e.key === 'ArrowRight') stepDate(1)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [mode.kind, backToList, cancelDraw, stepDate])
+  }, [mode.kind, backToList, cancelDraw, cancelAdjust, stepDate])
 
   // ─── Actions ───────────────────────────────────────────────
   async function saveDraft(e?: React.FormEvent) {
@@ -387,7 +474,7 @@ export default function Home() {
   }, [])
 
   const onMapSelect = useCallback((id: string) => {
-    if (mode.kind === 'draw' || mode.kind === 'name') return
+    if (mode.kind !== 'browse' && mode.kind !== 'parcel') return
     const parcel = parcels.find(p => p.id === id)
     if (parcel) openParcel(parcel)
   }, [mode.kind, parcels, openParcel])
@@ -395,6 +482,10 @@ export default function Home() {
   const onDrawComplete = useCallback((geometry: GeoJSON.Polygon) => {
     setMode({ kind: 'name', geometry })
     setSnap('peek')
+  }, [])
+
+  const onRpgPick = useCallback((pick: RpgPick | null) => {
+    setMode(m => m.kind !== 'pick' ? m : pick ? { kind: 'pick', pick, miss: false } : { kind: 'pick', pick: null, miss: true })
   }, [])
 
   const onDrawCancel = useCallback(() => {
@@ -518,7 +609,7 @@ export default function Home() {
 
     if (!loading && !fetchError) {
       footer = (
-        <button onClick={startDraw} className="btn btn-primary w-full">
+        <button onClick={startCreate} className="btn btn-primary w-full">
           <Plus size={18} strokeWidth={2.5} aria-hidden />
           Nouvelle parcelle
         </button>
@@ -659,6 +750,136 @@ export default function Home() {
         )}
       </div>
     )
+  } else if (mode.kind === 'choose') {
+    header = (
+      <div className="flex items-center justify-between px-5 pt-0.5 pb-2 md:pt-4">
+        <h1 className="text-[17px] font-bold tracking-[-0.01em]">Nouvelle parcelle</h1>
+        <button onClick={cancelDraw} className="icon-btn" aria-label="Annuler"><X size={18} aria-hidden /></button>
+      </div>
+    )
+    body = (
+      <div className="flex flex-col gap-2.5 px-5 pb-5">
+        <p className="text-[13px] leading-snug text-ink-2">Comment tracer le contour du champ ?</p>
+        <ChoiceCard
+          icon={MousePointerClick}
+          title="Choisir sur la carte"
+          badge="Le plus rapide"
+          text={`${isDesktop ? 'Cliquez sur' : 'Touchez'} votre champ : son contour est repris de la déclaration PAC ${RPG_EDITION}.`}
+          onClick={startPick}
+        />
+        <ChoiceCard
+          icon={Pencil}
+          title="Dessiner moi-même"
+          text="Si le champ a changé depuis la déclaration PAC, ou s’il n’a pas été déclaré."
+          onClick={startDraw}
+        />
+      </div>
+    )
+  } else if (mode.kind === 'pick') {
+    const { pick } = mode
+    const tooDetailed = !!pick && pick.geometry.coordinates[0].length > MAX_VERTICES
+    const notice =
+      mode.miss ? { icon: MousePointerClick, text: 'Aucune parcelle déclarée à cet endroit. Si ce champ n’a pas été déclaré à la PAC, dessinez-le à la main.' }
+      : rpgState === 'zoom' ? { icon: ZoomIn, text: 'Zoomez sur votre champ pour afficher les contours des parcelles déclarées, ou cherchez votre commune ci-dessous.' }
+      : rpgState === 'dense' ? { icon: ZoomIn, text: 'Beaucoup de parcelles dans cette zone : zoomez pour les afficher toutes.' }
+      : rpgState === 'error' ? { icon: X, text: 'Contours indisponibles pour le moment. Déplacez la carte pour réessayer, ou dessinez le champ à la main.' }
+      : null
+    header = (
+      <div className="flex items-center justify-between px-5 pt-0.5 pb-2 md:pt-4">
+        <h1 className="text-[17px] font-bold tracking-[-0.01em]">Nouvelle parcelle</h1>
+        <button onClick={cancelDraw} className="icon-btn" aria-label="Abandonner"><X size={18} aria-hidden /></button>
+      </div>
+    )
+    body = (
+      <div className="flex flex-col gap-4 px-5 pb-4">
+        <Steps
+          current={pick ? 1 : 0}
+          steps={[
+            { title: 'Choisissez votre champ', text: `${isDesktop ? 'Cliquez sur' : 'Touchez'} une parcelle aux contours blancs : ce sont les déclarations PAC ${RPG_EDITION}.` },
+            { title: 'Vérifiez le contour', text: `Pas le bon ? ${isDesktop ? 'Cliquez sur' : 'Touchez'} une autre parcelle, ou ajustez ses sommets.` },
+            { title: 'Nommez la parcelle', text: 'Elle apparaît ensuite dans votre liste.' },
+          ]}
+        />
+
+        {pick && (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-3.5 rounded-xl bg-paper-2 px-3 py-2.5">
+              <ParcelShape geometry={pick.geometry} size={48} className="bg-paper" />
+              <div className="min-w-0">
+                <p className="font-mono text-lg font-medium tabular-nums">{formatArea(parcelAreaHa(pick.geometry))}</p>
+                <p className="line-clamp-2 text-[13px] leading-snug text-ink-2">
+                  {pick.culture ? cultures[pick.culture] ?? pick.culture : 'Culture non renseignée'}
+                </p>
+                <p className="text-[11px] text-ink-3">Déclaration PAC {RPG_EDITION}</p>
+              </div>
+            </div>
+            {tooDetailed ? (
+              <p className="text-[13px] leading-snug text-danger">
+                Ce contour compte plus de {MAX_VERTICES.toLocaleString('fr-FR')} sommets et ne peut pas être enregistré. Dessinez le champ à la main.
+              </p>
+            ) : (
+              <button onClick={startAdjust} className="btn btn-quiet w-full">
+                <Spline size={17} aria-hidden />
+                Ajuster les sommets
+              </button>
+            )}
+          </div>
+        )}
+
+        {!pick && notice && (
+          <p className="flex items-start gap-2.5 rounded-xl bg-signal/25 px-3 py-2.5 text-[13px] leading-snug text-ink">
+            <notice.icon size={16} className="mt-px shrink-0" aria-hidden />
+            {notice.text}
+          </p>
+        )}
+        {!pick && !notice && rpgState === 'loading' && (
+          <p className="flex items-center gap-2 text-[13px] text-ink-3">
+            <Loader2 size={14} className="animate-spin" aria-hidden />
+            Chargement des contours…
+          </p>
+        )}
+
+        <PlaceSearch onPick={(lat, lon, zoom) => mapApi.current?.flyTo(lat, lon, Math.max(zoom, 16))} />
+      </div>
+    )
+    footer = (
+      <div className="flex flex-col gap-1">
+        <button onClick={confirmPick} disabled={!pick || tooDetailed} className="btn btn-primary w-full">
+          <Check size={18} strokeWidth={2.5} aria-hidden />
+          Utiliser ce contour
+        </button>
+        <button onClick={startDraw} className="flex h-9 items-center justify-center gap-1.5 rounded-xl text-[13px] font-medium text-ink-2 hover:bg-paper-2 hover:text-ink">
+          <Pencil size={14} aria-hidden />
+          Le champ a changé ? Dessiner à la main
+        </button>
+      </div>
+    )
+  } else if (mode.kind === 'adjust') {
+    header = (
+      <div className="flex items-center justify-between px-5 pt-0.5 pb-2 md:pt-4">
+        <h1 className="text-[17px] font-bold tracking-[-0.01em]">Ajuster le contour</h1>
+        <button onClick={cancelAdjust} className="icon-btn" aria-label="Annuler l’ajustement"><X size={18} aria-hidden /></button>
+      </div>
+    )
+    body = (
+      <div className="flex flex-col gap-3 px-5 pb-4">
+        <ul className="flex flex-col gap-2 text-[13px] leading-snug text-ink-2">
+          <li><span className="font-semibold text-ink">Déplacer un sommet :</span> faites-le glisser.</li>
+          <li><span className="font-semibold text-ink">Ajouter un sommet :</span> faites glisser un point estompé, entre deux sommets.</li>
+          <li><span className="font-semibold text-ink">Supprimer un sommet :</span> {isDesktop ? 'cliquez dessus' : 'touchez-le'}.</li>
+        </ul>
+        <p className="text-xs leading-snug text-ink-3">Zoomez au plus près des limites du champ pour un tracé précis.</p>
+      </div>
+    )
+    footer = (
+      <div className="flex gap-2">
+        <button onClick={cancelAdjust} className="btn btn-quiet">Annuler</button>
+        <button onClick={finishAdjust} className="btn btn-primary flex-1">
+          <Check size={18} strokeWidth={2.5} aria-hidden />
+          Valider le contour
+        </button>
+      </div>
+    )
   } else if (mode.kind === 'draw') {
     const step = vertices.length < 3 ? 0 : 1
     header = (
@@ -669,23 +890,14 @@ export default function Home() {
     )
     body = (
       <div className="flex flex-col gap-4 px-5 pb-4">
-        <ol className="flex flex-col gap-2.5">
-          {[
+        <Steps
+          current={step}
+          steps={[
             { title: 'Placez les sommets', text: isDesktop ? 'Cliquez sur la carte à chaque angle du champ.' : 'Touchez la carte à chaque angle du champ.' },
             { title: 'Fermez la forme', text: isDesktop ? 'Cliquez sur le premier sommet ou sur Terminer.' : 'Touchez le premier sommet ou Terminer.' },
             { title: 'Nommez la parcelle', text: 'Elle apparaît ensuite dans votre liste.' },
-          ].map((s, i) => (
-            <li key={s.title} className={`flex gap-3 transition-opacity ${i === step ? '' : 'opacity-45'}`}>
-              <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-bold ${i < step ? 'bg-ink text-paper' : i === step ? 'bg-signal text-on-signal' : 'bg-paper-3 text-ink-2'}`}>
-                {i < step ? <Check size={13} strokeWidth={3} aria-hidden /> : i + 1}
-              </span>
-              <span className="pt-0.5">
-                <span className="block text-sm font-semibold">{s.title}</span>
-                {i === step && <span className="block text-[13px] leading-snug text-ink-2">{s.text}</span>}
-              </span>
-            </li>
-          ))}
-        </ol>
+          ]}
+        />
 
         {zoom < DRAW_MIN_ZOOM && (
           <p className="flex items-start gap-2.5 rounded-xl bg-signal/25 px-3 py-2.5 text-[13px] leading-snug text-ink">
@@ -781,7 +993,8 @@ export default function Home() {
         loadingId={isRendering ? selected?.id ?? null : null}
         hoveredId={hovered}
         overlay={overlay}
-        draft={mode.kind === 'name' ? mode.geometry : null}
+        draft={mode.kind === 'name' ? mode.geometry : mode.kind === 'pick' ? mode.pick?.geometry ?? null : null}
+        rpg={mode.kind === 'pick'}
         insets={insets}
         onReady={onMapReady}
         onSelect={onMapSelect}
@@ -790,6 +1003,8 @@ export default function Home() {
         onDrawProgress={setVertices}
         onDrawComplete={onDrawComplete}
         onDrawCancel={onDrawCancel}
+        onRpgState={setRpgState}
+        onRpgPick={onRpgPick}
       />
 
       {caption && (
