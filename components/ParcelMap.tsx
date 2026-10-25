@@ -12,6 +12,13 @@ const HALO = '#0b0f0c'
 const FRANCE: L.LatLngTuple = [46.6, 2.4]
 const LABEL_MIN_ZOOM = 13
 
+// Géoplateforme IGN (WMTS, sans clé, Licence Ouverte Etalab 2.0) : couverture France
+const IGN_WMTS = 'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&STYLE=normal&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}'
+const ignLayer = (layer: string, format: 'image/jpeg' | 'image/png') => `${IGN_WMTS}&LAYER=${layer}&FORMAT=${format}`
+const IGN_ATTRIBUTION = 'Images aériennes, cadastre et noms © <a href="https://www.ign.fr" target="_blank" rel="noopener noreferrer">IGN</a> – <a href="https://www.etalab.gouv.fr/licence-ouverte-open-licence/" target="_blank" rel="noopener noreferrer">Licence Ouverte</a>'
+// En dessous, le parcellaire est trop dense pour être lisible
+const CADASTRE_MIN_ZOOM = 15
+
 L.drawLocal.draw.handlers.polygon.tooltip = {
   start: 'Cliquez pour placer le premier sommet',
   cont: 'Cliquez pour placer le sommet suivant',
@@ -102,13 +109,20 @@ export default function ParcelMap(props: Props) {
     })
     map.attributionControl.setPrefix(false)
 
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      attribution: 'Imagerie © Esri, Maxar, Earthstar Geographics',
+    L.tileLayer(ignLayer('ORTHOIMAGERY.ORTHOPHOTOS', 'image/jpeg'), {
+      attribution: IGN_ATTRIBUTION,
       maxZoom: 19,
     }).addTo(map)
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+    // Contours seuls, en blanc : voir le filtre #cadastre-lines plus bas
+    L.tileLayer(ignLayer('CADASTRALPARCELS.PARCELLAIRE_EXPRESS', 'image/png'), {
+      minZoom: CADASTRE_MIN_ZOOM,
       maxZoom: 19,
-      opacity: 0.85,
+      opacity: 0.7,
+      className: 'cadastre-tiles',
+    }).addTo(map)
+    L.tileLayer(ignLayer('GEOGRAPHICALNAMES.NAMES', 'image/png'), {
+      maxNativeZoom: 18,
+      maxZoom: 19,
     }).addTo(map)
 
     map.createPane('sentinel').style.zIndex = '390'
@@ -309,5 +323,21 @@ export default function ParcelMap(props: Props) {
       : null
   }, [props.draft])
 
-  return <div ref={containerRef} className="absolute inset-0" />
+  return (
+    <>
+      <div ref={containerRef} className="absolute inset-0" />
+      {/* Le cadastre IGN remplit chaque parcelle d'orange à 20 % et trace ses limites en orange,
+          confondables avec les parcelles de l'utilisateur. Gris = 2 × (1 − vert) : traits orange et
+          numéros violets deviennent blancs, leur halo blanc devient noir ; le remplissage
+          (alpha faible) disparaît */}
+      <svg aria-hidden width="0" height="0" className="absolute">
+        <filter id="cadastre-lines" colorInterpolationFilters="sRGB">
+          <feColorMatrix type="matrix" values="0 -2 0 0 2  0 -2 0 0 2  0 -2 0 0 2  0 0 0 1 0" />
+          <feComponentTransfer>
+            <feFuncA type="table" tableValues="0 0 0.6 1" />
+          </feComponentTransfer>
+        </filter>
+      </svg>
+    </>
+  )
 }

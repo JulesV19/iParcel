@@ -9,7 +9,7 @@ import { Wordmark } from '@/components/Brand'
 import Turnstile from '@/components/Turnstile'
 import { consentPath, readAuthorizationId } from '@/lib/oauth'
 
-// Mosaïque de tuiles Esri au-dessus de la Beauce (zoom 15)
+// Mosaïque d'images aériennes IGN au-dessus de la Beauce (zoom 15)
 const TILE_Z = 15
 const TILE_X0 = 16526
 const TILE_Y0 = 11345
@@ -35,7 +35,7 @@ function FieldsBackdrop() {
             // eslint-disable-next-line @next/next/no-img-element
             <img
               key={i}
-              src={`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${TILE_Z}/${y}/${x}`}
+              src={`https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&FORMAT=image/jpeg&TILEMATRIXSET=PM&TILEMATRIX=${TILE_Z}&TILEROW=${y}&TILECOL=${x}`}
               alt=""
               width={256}
               height={256}
@@ -51,9 +51,13 @@ function FieldsBackdrop() {
 
 // Même réponse qu'un email soit déjà inscrit ou non : la page ne révèle pas qui a un compte
 const SIGNUP_SENT = 'Si cette adresse n’a pas encore de compte, un email de confirmation vient de vous être envoyé. Sinon, connectez-vous.'
+// Idem pour la réinitialisation du mot de passe
+const RESET_SENT = 'Si un compte existe pour cette adresse, un email avec un lien pour choisir un nouveau mot de passe vient de vous être envoyé.'
 const MIN_PASSWORD = 8
 
-function authErrorMessage(error: { code?: string; status?: number; message: string }, mode: 'login' | 'signup'): string {
+type Mode = 'login' | 'signup' | 'reset'
+
+function authErrorMessage(error: { code?: string; status?: number; message: string }, mode: Mode): string {
   switch (error.code) {
     case 'invalid_credentials': return 'Email ou mot de passe incorrect.'
     case 'email_not_confirmed': return 'Adresse pas encore confirmée. Ouvrez le lien reçu par email, puis reconnectez-vous.'
@@ -65,9 +69,9 @@ function authErrorMessage(error: { code?: string; status?: number; message: stri
     case 'email_address_invalid': return 'Cette adresse email est refusée. Essayez-en une autre.'
   }
   if (!error.status) return 'Serveur injoignable. Vérifiez votre connexion internet.'
-  return mode === 'login'
-    ? `Connexion impossible (${error.message}).`
-    : `Création du compte impossible (${error.message}).`
+  return mode === 'login' ? `Connexion impossible (${error.message}).`
+    : mode === 'signup' ? `Création du compte impossible (${error.message}).`
+    : `Envoi du lien impossible (${error.message}).`
 }
 
 export default function LoginPage() {
@@ -75,7 +79,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [mode, setMode] = useState<'login' | 'signup'>('login')
+  const [mode, setMode] = useState<Mode>('login')
   const [message, setMessage] = useState<{ text: string; tone: 'ok' | 'error' } | null>(null)
   const [loading, setLoading] = useState(false)
   const [captchaToken, setCaptchaToken] = useState<string | null>(null)
@@ -87,6 +91,23 @@ export default function LoginPage() {
     if (!captchaToken) return
     setMessage(null)
     setLoading(true)
+
+    if (mode === 'reset') {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reinitialiser`,
+        captchaToken,
+      })
+      setLoading(false)
+      setAttempt(a => a + 1)
+      if (error) {
+        console.error('Auth Supabase :', error.code, error.status, error.message)
+        setMessage({ tone: 'error', text: authErrorMessage(error, mode) })
+      } else {
+        setMessage({ tone: 'ok', text: RESET_SENT })
+        setMode('login')
+      }
+      return
+    }
 
     const { data, error } =
       mode === 'login'
@@ -132,26 +153,36 @@ export default function LoginPage() {
             Images Sentinel-2 tous les 2 à 5 jours, indices de végétation et météo locale, parcelle par parcelle.
           </p>
         </div>
-        <p className="hidden text-[11px] text-white/50 md:block">Imagerie © Esri, Maxar · Données Copernicus Sentinel-2</p>
+        {/* Attribution exigée par la Licence Ouverte, visible aussi sur mobile */}
+        <p className="mt-4 text-[11px] text-white/50 md:mt-0">Images aériennes © IGN – Licence Ouverte</p>
       </section>
 
       <section className="relative flex items-center justify-center md:w-[480px] md:shrink-0 md:p-10">
         <div className="w-full rounded-t-[28px] bg-paper px-6 pt-7 pb-[max(24px,env(safe-area-inset-bottom))] text-ink shadow-panel md:max-w-sm md:rounded-[28px] md:p-8">
           <div className="md:hidden mb-6"><Wordmark /></div>
 
-          <div role="tablist" aria-label="Accès au compte" className="mb-6 grid grid-cols-2 gap-1 rounded-[14px] bg-paper-2 p-1">
-            {(['login', 'signup'] as const).map(m => (
-              <button
-                key={m}
-                role="tab"
-                aria-selected={mode === m}
-                onClick={() => { setMode(m); setMessage(null) }}
-                className={`h-9 rounded-[10px] text-sm font-semibold transition-all ${mode === m ? 'bg-paper text-ink shadow-[0_1px_3px_rgb(0_0_0/0.12)]' : 'text-ink-2 hover:text-ink'}`}
-              >
-                {m === 'login' ? 'Connexion' : 'Créer un compte'}
-              </button>
-            ))}
-          </div>
+          {mode === 'reset' ? (
+            <div className="mb-6">
+              <h2 className="text-[17px] font-bold tracking-[-0.01em]">Mot de passe oublié</h2>
+              <p className="mt-1 text-[13px] leading-snug text-ink-2">
+                Indiquez l’adresse de votre compte : vous recevrez un lien pour choisir un nouveau mot de passe.
+              </p>
+            </div>
+          ) : (
+            <div role="tablist" aria-label="Accès au compte" className="mb-6 grid grid-cols-2 gap-1 rounded-[14px] bg-paper-2 p-1">
+              {(['login', 'signup'] as const).map(m => (
+                <button
+                  key={m}
+                  role="tab"
+                  aria-selected={mode === m}
+                  onClick={() => { setMode(m); setMessage(null) }}
+                  className={`h-9 rounded-[10px] text-sm font-semibold transition-all ${mode === m ? 'bg-paper text-ink shadow-[0_1px_3px_rgb(0_0_0/0.12)]' : 'text-ink-2 hover:text-ink'}`}
+                >
+                  {m === 'login' ? 'Connexion' : 'Créer un compte'}
+                </button>
+              ))}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
             <label className="flex flex-col gap-1.5">
@@ -168,30 +199,41 @@ export default function LoginPage() {
                 className="field"
               />
             </label>
-            <label className="flex flex-col gap-1.5">
-              <span className="text-[13px] font-semibold">Mot de passe</span>
-              <span className="relative">
-                <input
-                  id="login-password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                  minLength={mode === 'signup' ? MIN_PASSWORD : undefined}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  required
-                  className="field pr-11"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(s => !s)}
-                  aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
-                  className="absolute right-1.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-ink-3 hover:text-ink"
-                >
-                  {showPassword ? <EyeOff size={17} aria-hidden /> : <Eye size={17} aria-hidden />}
-                </button>
-              </span>
-              {mode === 'signup' && <span className="text-xs text-ink-3">{MIN_PASSWORD} caractères minimum.</span>}
-            </label>
+            {mode !== 'reset' && (
+              <label className="flex flex-col gap-1.5">
+                <span className="text-[13px] font-semibold">Mot de passe</span>
+                <span className="relative">
+                  <input
+                    id="login-password"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                    minLength={mode === 'signup' ? MIN_PASSWORD : undefined}
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    required
+                    className="field pr-11"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(s => !s)}
+                    aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                    className="absolute right-1.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-ink-3 hover:text-ink"
+                  >
+                    {showPassword ? <EyeOff size={17} aria-hidden /> : <Eye size={17} aria-hidden />}
+                  </button>
+                </span>
+                {mode === 'signup' && <span className="text-xs text-ink-3">{MIN_PASSWORD} caractères minimum.</span>}
+              </label>
+            )}
+            {mode === 'login' && (
+              <button
+                type="button"
+                onClick={() => { setMode('reset'); setMessage(null) }}
+                className="-mt-1 self-start text-xs text-ink-3 underline underline-offset-2 hover:text-ink"
+              >
+                Mot de passe oublié ?
+              </button>
+            )}
 
             {message && (
               <p
@@ -214,8 +256,13 @@ export default function LoginPage() {
             )}
 
             <button id="login-submit" type="submit" disabled={loading || !captchaToken} className="btn btn-primary mt-1 w-full">
-              {loading ? 'Un instant…' : !captchaToken ? 'Vérification anti-robot…' : mode === 'login' ? 'Se connecter' : 'Créer mon compte'}
+              {loading ? 'Un instant…' : !captchaToken ? 'Vérification anti-robot…' : mode === 'login' ? 'Se connecter' : mode === 'signup' ? 'Créer mon compte' : 'Recevoir le lien'}
             </button>
+            {mode === 'reset' && (
+              <button type="button" onClick={() => { setMode('login'); setMessage(null) }} className="btn btn-quiet w-full">
+                Retour à la connexion
+              </button>
+            )}
           </form>
 
           <nav className="mt-6 flex justify-center gap-4 text-[11px] text-ink-3">

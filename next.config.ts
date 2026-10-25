@@ -9,7 +9,7 @@ const csp = [
   // Les pages statiques de Next embarquent des scripts inline ; React a besoin d'eval en dev
   `script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com${isDev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://server.arcgisonline.com",
+  "img-src 'self' data: blob: https://data.geopf.fr",
   "font-src 'self'",
   [
     "connect-src 'self'",

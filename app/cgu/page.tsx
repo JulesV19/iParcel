@@ -10,7 +10,7 @@ export default function CGU() {
         <h2 className="text-sm font-semibold text-ink mb-2">1. Présentation du service</h2>
         <p className="text-sm text-ink-2">
           iParcel est un service en ligne permettant aux utilisateurs de délimiter des parcelles
-          agricoles sur une carte satellite, de consulter les images satellitaires Sentinel-2
+          agricoles sur des images aériennes, de consulter les images satellitaires Sentinel-2
           correspondantes et la météo locale de chaque parcelle. L’utilisateur peut aussi
           autoriser un assistant IA à lire ces données pour rédiger des rapports.
           Le service est édité par Jules Videgrain à titre personnel.
@@ -39,12 +39,14 @@ export default function CGU() {
       </section>
 
       <section className="mb-6">
-        <h2 className="text-sm font-semibold text-ink mb-2">4. Données satellitaires</h2>
+        <h2 className="text-sm font-semibold text-ink mb-2">4. Données cartographiques et satellitaires</h2>
         <p className="text-sm text-ink-2">
           Les images satellitaires affichées sont issues du programme Copernicus (ESA),
-          données Sentinel-2, distribuées via l’API publique Element 84 Earth Search.
-          Ces données sont fournies à titre indicatif. iParcel ne garantit pas leur
-          exhaustivité, leur actualité ou leur précision géométrique.
+          données Sentinel-2, distribuées via l’API publique Element 84 Earth Search. Le fond de
+          carte, le plan cadastral et les noms de lieux proviennent de l’IGN. Ces données sont
+          fournies à titre indicatif. iParcel ne garantit pas leur exhaustivité, leur actualité
+          ou leur précision géométrique. Le plan cadastral n’a pas de valeur juridique et ne
+          permet pas d’établir les limites d’une propriété.
         </p>
       </section>
 

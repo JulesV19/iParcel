@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { LogOut, Plug, Trash2 } from 'lucide-react'
+import { Download, LogOut, Plug, Trash2 } from 'lucide-react'
 
-export default function AccountMenu({ email, parcelCount, onLogout, onDeleteAccount }: {
+export default function AccountMenu({ email, parcelCount, onExport, onLogout, onDeleteAccount }: {
   email: string
   parcelCount: number
+  onExport: () => void
   onLogout: () => void
   onDeleteAccount: () => Promise<string | null>
 }) {
@@ -69,6 +70,12 @@ export default function AccountMenu({ email, parcelCount, onLogout, onDeleteAcco
                 <Plug size={16} className="text-ink-3" aria-hidden />
                 Applications connectées
               </Link>
+              {parcelCount > 0 && (
+                <button onClick={onExport} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm hover:bg-paper-2">
+                  <Download size={16} className="text-ink-3" aria-hidden />
+                  Exporter mes parcelles (GeoJSON)
+                </button>
+              )}
               <button onClick={onLogout} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm hover:bg-paper-2">
                 <LogOut size={16} className="text-ink-3" aria-hidden />
                 Se déconnecter

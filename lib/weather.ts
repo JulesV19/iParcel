@@ -43,23 +43,15 @@ export function parcelCentroid(geometry: GeoJSON.Polygon): [number, number] {
   return [lat, lon]
 }
 
-function fmtDate(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
 export async function fetchWeather(lat: number, lon: number): Promise<WeatherData> {
-  const now = new Date()
-  const todayStr = fmtDate(now)
-  const start = new Date(now); start.setDate(now.getDate() - 2)
-  const end = new Date(now); end.setDate(now.getDate() + 2)
-
+  // J-2 → J+2 comptés dans le fuseau de la parcelle (timezone=auto), pas celui de l'appareil ou du serveur
   const params = new URLSearchParams({
     latitude: lat.toFixed(5),
     longitude: lon.toFixed(5),
     daily: 'temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode,wind_speed_10m_max',
     current: 'temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weathercode',
-    start_date: fmtDate(start),
-    end_date: fmtDate(end),
+    past_days: '2',
+    forecast_days: '3',
     timezone: 'auto',
   })
 
@@ -75,6 +67,8 @@ export async function fetchWeather(lat: number, lon: number): Promise<WeatherDat
   const safePrecip = (v: unknown): number =>
     typeof v === 'number' ? Math.round(v * 10) / 10 : 0
 
+  // Heure locale de la parcelle, au format AAAA-MM-JJTHH:MM
+  const todayStr = typeof json.current.time === 'string' ? json.current.time.slice(0, 10) : ''
   const todayIndex = (json.daily.time as string[]).findIndex(d => d === todayStr)
 
   const days: DayWeather[] = (json.daily.time as string[]).map((date, i) => ({

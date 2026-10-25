@@ -16,7 +16,7 @@ export default function Confidentialite() {
       <section className="mb-6">
         <h2 className="text-sm font-semibold text-ink mb-2">Données collectées</h2>
         <ul className="text-sm text-ink-2 space-y-1 list-disc list-inside">
-          <li><strong>Adresse e-mail</strong> — pour la création et l’authentification de votre compte.</li>
+          <li><strong>Adresse e-mail</strong> — pour la création et l’authentification de votre compte, et l’envoi des e-mails de confirmation d’inscription et de réinitialisation du mot de passe.</li>
           <li><strong>Coordonnées géographiques de vos parcelles</strong> — polygones dessinés sur la carte, stockés en base de données.</li>
           <li><strong>Noms de parcelles</strong> — librement saisis par l’utilisateur.</li>
           <li><strong>Données techniques</strong> — adresse IP, type de navigateur, date et heure des connexions, enregistrées par nos prestataires pour la sécurité du service.</li>
@@ -117,11 +117,12 @@ export default function Confidentialite() {
         <h2 className="text-sm font-semibold text-ink mb-2">Sous-traitants</h2>
         <div className="text-sm text-ink-2 space-y-2">
           <div>
-            <strong>Supabase, Inc.</strong> (données hébergées en Irlande, AWS eu-west-1) — stockage
-            des comptes, des parcelles et du journal d’activité, gestion des autorisations des
-            applications connectées, journaux de connexion. Supabase étant une société
-            américaine, un accès depuis les États-Unis reste possible pour le support : il est
-            encadré par les clauses contractuelles types de la Commission européenne. <a href="https://supabase.com/privacy" className="text-ink-2" target="_blank" rel="noopener noreferrer">Politique Supabase</a>
+            <strong>Supabase Pte. Ltd.</strong> (Singapour ; données hébergées en Irlande, AWS
+            eu-west-1) — stockage des comptes, des parcelles et du journal d’activité, gestion des
+            autorisations des applications connectées, journaux de connexion. Un accès depuis
+            l’extérieur de l’Union européenne reste possible pour le support : il est encadré par les
+            clauses contractuelles types de la Commission européenne, intégrées à l’accord de
+            traitement des données de Supabase. <a href="https://supabase.com/privacy" className="text-ink-2" target="_blank" rel="noopener noreferrer">Politique Supabase</a>
           </div>
           <div>
             <strong>Vercel, Inc.</strong> (États-Unis) — hébergement de l’application, journaux
@@ -132,8 +133,26 @@ export default function Confidentialite() {
           <div>
             <strong>Cloudflare, Inc.</strong> (États-Unis) — vérification anti-robot Turnstile sur la
             page de connexion. Cloudflare reçoit l’adresse IP et des caractéristiques techniques du
-            navigateur, sans cookie publicitaire.{' '}
+            navigateur, sans cookie publicitaire. Transfert encadré par le Data Privacy Framework
+            UE–États-Unis.{' '}
             <a href="https://www.cloudflare.com/turnstile-privacy-policy/" className="text-ink-2" target="_blank" rel="noopener noreferrer">Politique Turnstile</a>
+          </div>
+        </div>
+      </section>
+
+      <section className="mb-6">
+        <h2 className="text-sm font-semibold text-ink mb-2">Autres destinataires</h2>
+        <div className="text-sm text-ink-2 space-y-2">
+          <p>
+            Ces services fournissent un contenu ou une fonction à iParcel et traitent les données
+            reçues sous leur propre responsabilité, selon leurs conditions.
+          </p>
+          <div>
+            <strong>Google LLC</strong> (États-Unis) — envoi des e-mails de confirmation
+            d’inscription et de réinitialisation du mot de passe depuis une adresse Gmail : Google
+            reçoit votre adresse e-mail et le message. Transfert encadré par le Data Privacy
+            Framework UE–États-Unis.{' '}
+            <a href="https://policies.google.com/privacy" className="text-ink-2" target="_blank" rel="noopener noreferrer">Politique Google</a>
           </div>
           <div>
             <strong>Element 84 / Amazon Web Services</strong> (États-Unis) — fourniture des images
@@ -149,14 +168,11 @@ export default function Confidentialite() {
             <a href="https://open-meteo.com/en/terms" className="text-ink-2" target="_blank" rel="noopener noreferrer">Conditions Open-Meteo</a>
           </div>
           <div>
-            <strong>IGN, Géoplateforme</strong> (France) — recherche de communes et d’adresses.
-            Le texte saisi dans la recherche et votre adresse IP sont transmis, sans identifiant utilisateur.{' '}
+            <strong>IGN, Géoplateforme</strong> (France) — fond de carte (photographies aériennes,
+            cadastre, noms de lieux) et recherche de communes et d’adresses. Votre navigateur
+            transmet votre adresse IP, la zone affichée et le texte saisi dans la recherche, sans
+            identifiant utilisateur.{' '}
             <a href="https://geoservices.ign.fr/cgu-licences" className="text-ink-2" target="_blank" rel="noopener noreferrer">Conditions IGN</a>
-          </div>
-          <div>
-            <strong>Esri</strong> (États-Unis) — fond de carte satellite. Les tuiles sont chargées
-            directement par votre navigateur, qui transmet votre adresse IP et la zone affichée ;
-            aucune donnée de compte n’est transmise.
           </div>
         </div>
       </section>
@@ -197,13 +213,13 @@ export default function Confidentialite() {
           <li><strong>Droit d’accès</strong> — demander une copie de vos données ; le journal d’activité des applications connectées est consultable directement sur la page <Link href="/applications">Applications connectées</Link></li>
           <li><strong>Droit de rectification</strong> — corriger des données inexactes</li>
           <li><strong>Droit à l’effacement</strong> — supprimer votre compte directement depuis l’interface (menu du compte, « Supprimer mon compte »), ce qui efface immédiatement toutes vos données</li>
-          <li><strong>Droit à la portabilité</strong> — obtenir vos données dans un format structuré</li>
+          <li><strong>Droit à la portabilité</strong> — exporter vos parcelles au format GeoJSON depuis le menu du compte (« Exporter mes parcelles »), ou obtenir l’ensemble de vos données sur demande</li>
           <li><strong>Droit à la limitation</strong> — demander la suspension d’un traitement</li>
           <li><strong>Droit d’opposition</strong> — vous opposer à un traitement fondé sur l’intérêt légitime ; vous pouvez à tout moment retirer l’accès d’une application connectée</li>
           <li><strong>Directives après le décès</strong> — définir le sort de vos données après votre décès (article 85 de la loi Informatique et Libertés)</li>
         </ul>
         <p className="text-sm text-ink-2 mt-2">
-          Pour exercer ces droits (hors suppression et retrait d’accès, déjà disponibles dans l’interface) :
+          Pour exercer ces droits (hors suppression, export et retrait d’accès, déjà disponibles dans l’interface) :
           <a href="mailto:jv9994@icloud.com" className="text-ink-2 ml-1">jv9994@icloud.com</a>.
           Une réponse vous est apportée dans un délai d’un mois.
         </p>

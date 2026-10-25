@@ -234,6 +234,9 @@ h1, h2, h3 {
 .leaflet-control-attribution a { color: inherit; }
 .leaflet-control-attribution .leaflet-attribution-flag { display: none !important; }
 
+/* Filtre SVG défini dans ParcelMap */
+.cadastre-tiles { filter: url(#cadastre-lines); }
+
 .parcel-label.leaflet-tooltip {
   background: transparent;
   border: 0;

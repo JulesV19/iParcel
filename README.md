@@ -9,7 +9,7 @@ Développé avec Next.js, hébergé sur Vercel, sans backend propre.
 ## Fonctionnalités
 
 **Carte**
-- Carte satellite plein écran (ESRI World Imagery + noms de lieux), panneau flottant à gauche sur ordinateur, feuille glissante en bas sur mobile
+- Carte plein écran sur images aériennes IGN, avec noms de lieux et cadastre (à partir du zoom 15), panneau flottant à gauche sur ordinateur, feuille glissante en bas sur mobile
 - Recherche de commune ou d'adresse (Géoplateforme IGN) et bouton « Me localiser »
 - Parcelles affichées avec leur nom ; survol de la liste ↔ surbrillance sur la carte
 - Thème clair ou sombre selon l'appareil
@@ -39,7 +39,7 @@ Développé avec Next.js, hébergé sur Vercel, sans backend propre.
 |---|---|
 | Framework | Next.js 16 (App Router), TypeScript |
 | Styles | Tailwind CSS v4 |
-| Carte | Leaflet + Leaflet.draw, fond ESRI World Imagery |
+| Carte | Leaflet + Leaflet.draw, Géoplateforme IGN (ortho-images, Parcellaire Express, noms) |
 | Auth + BDD | Supabase (email/password, RLS) |
 | Images satellite | Element 84 Earth Search (STAC API, Sentinel-2 L2A) |
 | Lecture COG | geotiff.js (range requests HTTP) |
@@ -68,7 +68,16 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 
 ## Base de données Supabase
 
-Seule la table `parcels` est utilisée (schéma dans la doc Obsidian), ainsi que la fonction `delete_user()` pour la suppression de compte.
+Seule la table `parcels` est utilisée, ainsi que la fonction `delete_user()` pour la suppression de compte.
+
+Reconstruire la base sur un projet vide, dans cet ordre : `schema-parcels.sql`, `limites-parcels.sql`, puis les migrations du serveur MCP (section suivante) et `purge-audit-auth.sql`. `drop-hors-visualiseur.sql` ne sert qu'à l'ancienne base.
+
+Réglages du dashboard dont dépend l'app :
+- Authentication → URL Configuration → Redirect URLs : l'adresse du site et `/reinitialiser` (lien de l'email « mot de passe oublié »), en production et en local
+- Authentication → Emails : SMTP personnalisé (Gmail), modèles « Confirm signup » et « Reset password » en français
+- Authentication → Attack Protection : captcha Turnstile (clé secrète)
+
+Sauvegardes : le plan gratuit n'en fournit aucune que l'on puisse restaurer. En cas de besoin : `pg_dump` avec la chaîne de connexion du projet (Settings → Database).
 
 `supabase/limites-parcels.sql` impose les limites côté base (nom de 80 caractères, géométrie valide de 1 000 sommets au plus, 200 parcelles par compte) : le navigateur ne fait que les refléter.
 

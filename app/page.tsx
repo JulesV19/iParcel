@@ -321,8 +321,9 @@ export default function Home() {
     if (!selected) return
     const name = renameValue.trim()
     if (!name || name === selected.name) { setRenaming(false); return }
-    const { error } = await supabase.from('parcels').update({ name }).eq('id', selected.id)
-    if (error) { notify('Le renommage a échoué. Réessayez.', 'error'); return }
+    // Sans ligne renvoyée, rien n'a été modifié (parcelle supprimée ailleurs, session expirée)
+    const { data, error } = await supabase.from('parcels').update({ name }).eq('id', selected.id).select('id')
+    if (error || !data?.length) { notify('Le renommage a échoué. Réessayez.', 'error'); return }
     setParcels(prev => prev.map(p => p.id === selected.id ? { ...p, name } : p).sort(byName))
     setRenaming(false)
     notify('Parcelle renommée')
@@ -330,11 +331,31 @@ export default function Home() {
 
   async function deleteParcel() {
     if (!selected) return
-    const { error } = await supabase.from('parcels').delete().eq('id', selected.id)
-    if (error) { notify('La suppression a échoué. Réessayez.', 'error'); return }
+    const { data, error } = await supabase.from('parcels').delete().eq('id', selected.id).select('id')
+    if (error || !data?.length) { notify('La suppression a échoué. Réessayez.', 'error'); return }
     setParcels(prev => prev.filter(p => p.id !== selected.id))
     notify(`« ${selected.name} » supprimée`)
     backToList()
+  }
+
+  // Droit à la portabilité : toutes les parcelles du compte, lisibles par les logiciels SIG
+  function exportParcels() {
+    const collection = {
+      type: 'FeatureCollection',
+      features: parcels.map(p => ({
+        type: 'Feature',
+        id: p.id,
+        properties: { name: p.name, area_ha: Math.round(parcelAreaHa(p.geometry) * 100) / 100 },
+        geometry: p.geometry,
+      })),
+    }
+    const url = URL.createObjectURL(new Blob([JSON.stringify(collection, null, 2)], { type: 'application/geo+json' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `iparcel-parcelles-${new Date().toISOString().slice(0, 10)}.geojson`
+    a.click()
+    // Révoquée tout de suite, l'adresse peut annuler le téléchargement (Safari, Firefox)
+    setTimeout(() => URL.revokeObjectURL(url), 10_000)
   }
 
   async function logout() {
@@ -397,7 +418,7 @@ export default function Home() {
       <div className="flex flex-col gap-3 px-5 pt-1 pb-3 md:pt-4">
         <div className="flex items-center justify-between">
           <Wordmark />
-          <AccountMenu email={email} parcelCount={parcels.length} onLogout={logout} onDeleteAccount={deleteAccount} />
+          <AccountMenu email={email} parcelCount={parcels.length} onExport={exportParcels} onLogout={logout} onDeleteAccount={deleteAccount} />
         </div>
         <PlaceSearch onPick={(lat, lon, zoom) => { mapApi.current?.flyTo(lat, lon, zoom); setSnap('peek') }} />
       </div>
